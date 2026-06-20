@@ -1,5 +1,5 @@
 // Your web app's Firebase configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyC98nPNl5j2qKlL_i26XJWZcPpabmW7Aow",
   authDomain: "bn-fifa-wc-tracker.firebaseapp.com",
   projectId: "bn-fifa-wc-tracker",
