@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>World Cup 26 — Group Stage Tracker</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <div class="hero">
+    <div class="hero-inner">
+      <div>
+        <h1>World Cup <span class="accent">26</span> Tracker</h1>
+        <div class="subtitle" id="subtitle">Loading…</div>
+      </div>
+      <div class="sim-controls">
+        <div class="sim-toggle">
+          <button class="switch" id="sim-switch" role="switch" aria-checked="false" aria-label="Toggle what-if mode"></button>
+          What-if mode
+        </div>
+        <div class="sim-actions">
+          <button class="btn-ghost" id="sim-share">Share scenario</button>
+          <button class="btn-ghost" id="sim-reset">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sim-banner wrap" style="margin-top:14px;">
+    You're viewing a hypothetical scenario, not the real standings. Scores you enter below for unplayed matches only exist in this browser tab — share the link above to send this exact scenario to someone else.
+  </div>
+
+  <div class="wrap">
+    <div class="section-label">Groups A–L</div>
+    <div class="group-grid" id="group-grid"><p style="color:var(--text-muted);">Loading matches…</p></div>
+
+    <div class="section-label">Best Third-Place Teams</div>
+    <div class="third-place-wrap" id="third-place"></div>
+
+    <footer>
+      <span>Tiebreakers follow the 2026 head-to-head-first order. Fair-play cards & FIFA ranking aren't factored in — genuinely unresolved ties are flagged, not guessed.</span>
+      <a href="admin.html">Admin</a>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

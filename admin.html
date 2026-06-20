@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — World Cup 26 Tracker</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <div class="hero">
+    <div class="hero-inner">
+      <h1>Admin</h1>
+      <a class="btn-ghost" href="index.html" style="text-decoration:none;display:inline-block;">&larr; Back to tracker</a>
+    </div>
+  </div>
+
+  <div class="admin-shell">
+
+    <div class="login-card" id="login-card">
+      <h2 style="margin-top:0;">Sign in</h2>
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" required autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" required autocomplete="current-password" />
+        </div>
+        <button class="btn-primary" type="submit">Sign in</button>
+        <p class="status-msg" id="login-msg"></p>
+      </form>
+    </div>
+
+    <div id="admin-panel" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <span style="color:var(--text-muted);font-size:13px;">Signed in as <span id="user-email"></span></span>
+        <button class="btn-ghost" id="logout-btn">Sign out</button>
+      </div>
+
+      <div class="seed-card">
+        <h2 style="margin-top:0;">First-time setup</h2>
+        <p style="color:var(--text-muted);font-size:13px;">
+          Imports the full 72-match schedule into Firestore. Safe to run once at the start.
+          Re-running overwrites matches by ID (A1…L6) — handy if you need to fix the schedule itself,
+          but for entering live scores use the list below instead.
+        </p>
+        <button class="btn-primary" id="seed-btn">Import schedule</button>
+        <p class="status-msg" id="seed-msg"></p>
+      </div>
+
+      <div class="seed-card">
+        <h2 style="margin-top:0;">Match scores</h2>
+        <p style="color:var(--text-muted);font-size:13px;">Leave a score blank to mark a match as not yet played.</p>
+        <div id="match-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

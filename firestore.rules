@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /matches/{matchId} {
+      // Anyone with the link can read live standings.
+      allow read: if true;
+
+      // Only your one admin account can write scores.
+      // Replace the string below with your admin user's UID:
+      // Firebase Console -> Authentication -> Users -> copy the "User UID" column.
+      allow write: if request.auth != null
+                   && request.auth.uid == "1rP2PI8CYnduVeR7HkE6IpWTta92";
+    }
+  }
+}
