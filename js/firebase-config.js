@@ -1,10 +1,7 @@
-// Firebase Console -> Project settings -> General -> "Your apps" -> Web app
-// -> SDK setup and configuration -> Config. Paste your values below.
-//
-// These values are safe to expose in client-side code (that's how every
-// Firebase web app works) — access is controlled by your Firestore
-// security rules, not by hiding this object.
 // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
