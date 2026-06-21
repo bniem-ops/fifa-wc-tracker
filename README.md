@@ -69,9 +69,28 @@ Third-place teams show as "alive" with a provisional cross-group rank
 until **all 12 groups** have finished their third match — that's when the
 real best-8 cutoff is actually determined.
 
+## Round of 32 bracket
+
+`/bracket.html` shows all 16 fixed Round of 32 fixtures (Matches 73–88),
+auto-filled from live standings:
+
+- **Group winner/runner-up slots** fill in as soon as that group has played
+  all 3 matches (and isn't itself stuck on an unresolved tie).
+- **Third-place slots** ("Best 3rd Group X/Y/Z...") only fill in once **all
+  12 groups** are complete, using FIFA's actual **Annex C** allocation
+  table — the official pre-published lookup covering all 495 possible
+  combinations of which 8 groups' third-place teams qualify, so the slot a
+  given third-place team lands in is exactly what FIFA would assign, not an
+  approximation.
+- Toggling **what-if mode** on the main tracker and clicking through to
+  Bracket carries the scenario over, so you can preview how a hypothetical
+  result would reshape the bracket.
+
 ## Files
 
 - `index.html` / `js/app.js` — the public tracker
+- `bracket.html` / `js/bracket.js` — the Round of 32 bracket
+- `js/bracket-data.js` — the 16 fixed fixture slots + FIFA's Annex C table
 - `admin.html` / `js/admin.js` — score entry (auth-gated)
 - `js/standings-engine.js` — pure tiebreaker/qualification logic (no
   Firebase dependency — see `test.mjs` for a standalone sanity check)

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Round of 32 Bracket — World Cup 26 Tracker</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <div class="hero">
+    <nav class="page-nav">
+      <a href="index.html" class="nav-link">Tracker</a>
+      <a href="bracket.html" class="nav-link active">Bracket</a>
+      <a href="admin.html" class="nav-link">Admin</a>
+    </nav>
+    <div class="hero-inner">
+      <div>
+        <h1>Round of <span class="accent">32</span></h1>
+        <div class="subtitle">All 16 fixtures, auto-filled as groups resolve</div>
+      </div>
+      <div class="sim-controls">
+        <div class="sim-toggle">
+          <button class="switch" id="sim-switch" role="switch" aria-checked="false" aria-label="Toggle what-if mode"></button>
+          What-if mode
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sim-banner wrap" style="margin-top:14px;">
+    Showing a hypothetical scenario carried over from the tracker's what-if mode, not the confirmed bracket.
+  </div>
+
+  <div class="wrap">
+    <p id="bracket-status" class="bracket-status" style="display:none;"></p>
+    <div id="bracket-content"><p style="color:var(--text-muted);margin-top:20px;">Loading matches…</p></div>
+
+    <footer>
+      <span>Third-place slots follow FIFA's official Annex C allocation table (all 495 possible combinations). Direct group winner/runner-up slots only fill in once that group has played all 3 matches.</span>
+      <a href="index.html">Tracker</a>
+    </footer>
+  </div>
+
+  <script>
+    if (location.search) {
+      document.querySelectorAll(".nav-link").forEach((a) => (a.href = a.getAttribute("href") + location.search));
+    }
+  </script>
+  <script type="module" src="js/bracket.js"></script>
+</body>
+</html>

@@ -96,10 +96,20 @@ function groupCardHtml(group, standings, groupMatches, statuses) {
       if (!isUpcoming) {
         scoreHtml = `<span class="fixture-score final">${m.homeScore}\u2013${m.awayScore}</span>`;
       } else if (simOn) {
+        const h = ov ? ov.homeScore : 0;
+        const a = ov ? ov.awayScore : 0;
         scoreHtml = `
-          <input type="number" min="0" max="20" class="score-input" data-match="${m.id}" data-side="home" value="${ov ? ov.homeScore : ""}" placeholder="-" />
+          <div class="stepper" data-match="${m.id}" data-side="home">
+            <button type="button" class="step-btn" data-dir="-1" aria-label="Decrease ${escapeHtml(m.home)} goals">\u2212</button>
+            <span class="step-value">${h}</span>
+            <button type="button" class="step-btn" data-dir="1" aria-label="Increase ${escapeHtml(m.home)} goals">+</button>
+          </div>
           <span class="fixture-score">\u2013</span>
-          <input type="number" min="0" max="20" class="score-input" data-match="${m.id}" data-side="away" value="${ov ? ov.awayScore : ""}" placeholder="-" />`;
+          <div class="stepper" data-match="${m.id}" data-side="away">
+            <button type="button" class="step-btn" data-dir="-1" aria-label="Decrease ${escapeHtml(m.away)} goals">\u2212</button>
+            <span class="step-value">${a}</span>
+            <button type="button" class="step-btn" data-dir="1" aria-label="Increase ${escapeHtml(m.away)} goals">+</button>
+          </div>`;
       } else {
         scoreHtml = `<span class="fixture-score">vs</span>`;
       }
@@ -179,22 +189,20 @@ function render() {
   const playedTotal = merged.filter((m) => m.status === "played").length;
   document.getElementById("subtitle").textContent = `${playedTotal}/72 group matches played${simOn ? " \u2014 viewing a what-if scenario" : ""}`;
 
-  wireScoreInputs();
+  wireScoreSteppers();
 }
 
-function wireScoreInputs() {
-  document.querySelectorAll(".score-input").forEach((input) => {
-    input.addEventListener("change", (e) => {
-      const matchId = e.target.dataset.match;
-      const side = e.target.dataset.side;
-      const val = e.target.value === "" ? null : Math.max(0, Math.min(20, Number(e.target.value)));
-      const current = overrides[matchId] || { homeScore: null, awayScore: null };
-      current[side === "home" ? "homeScore" : "awayScore"] = val;
-      if (current.homeScore == null || current.awayScore == null) {
-        delete overrides[matchId];
-      } else {
-        overrides[matchId] = current;
-      }
+function wireScoreSteppers() {
+  document.querySelectorAll(".step-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const wrap = btn.closest(".stepper");
+      const matchId = wrap.dataset.match;
+      const side = wrap.dataset.side; // "home" | "away"
+      const dir = Number(btn.dataset.dir);
+      const key = side === "home" ? "homeScore" : "awayScore";
+      const current = overrides[matchId] || { homeScore: 0, awayScore: 0 };
+      current[key] = Math.max(0, Math.min(20, (current[key] ?? 0) + dir));
+      overrides[matchId] = current;
       syncUrl();
       render();
     });

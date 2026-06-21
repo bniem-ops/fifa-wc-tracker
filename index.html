@@ -9,6 +9,11 @@
 <body>
 
   <div class="hero">
+    <nav class="page-nav">
+      <a href="index.html" class="nav-link active">Tracker</a>
+      <a href="bracket.html" class="nav-link">Bracket</a>
+      <a href="admin.html" class="nav-link">Admin</a>
+    </nav>
     <div class="hero-inner">
       <div>
         <h1>World Cup <span class="accent">26</span> Tracker</h1>
@@ -44,6 +49,11 @@
     </footer>
   </div>
 
+  <script>
+    if (location.search) {
+      document.querySelectorAll(".nav-link").forEach((a) => (a.href = a.getAttribute("href") + location.search));
+    }
+  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
