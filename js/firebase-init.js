@@ -21,8 +21,10 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 export const matchesCollection = collection(db, "matches");
+export const knockoutMatchesCollection = collection(db, "knockoutMatches");
 
 export {
+  collection,
   doc,
   getDocs,
   setDoc,

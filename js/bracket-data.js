@@ -5,23 +5,69 @@
 // the best-8 cut — resolved via ANNEX_C below, exactly as FIFA pre-defined
 // it (so the bracket is fixed before anyone knows who actually qualifies).
 
-export const R32_FIXTURES = [
-  { num: 73, date: "2026-06-28", venue: "SoFi Stadium, Inglewood", home: { type: "runnerup", group: "A" }, away: { type: "runnerup", group: "B" } },
-  { num: 74, date: "2026-06-29", venue: "Gillette Stadium, Foxborough", home: { type: "winner", group: "E" }, away: { type: "third", slot: "E" } },
-  { num: 75, date: "2026-06-29", venue: "Estadio BBVA, Monterrey", home: { type: "winner", group: "F" }, away: { type: "runnerup", group: "C" } },
-  { num: 76, date: "2026-06-29", venue: "NRG Stadium, Houston", home: { type: "winner", group: "C" }, away: { type: "runnerup", group: "F" } },
-  { num: 77, date: "2026-06-30", venue: "MetLife Stadium, East Rutherford", home: { type: "winner", group: "I" }, away: { type: "third", slot: "I" } },
-  { num: 78, date: "2026-06-30", venue: "AT&T Stadium, Arlington", home: { type: "runnerup", group: "E" }, away: { type: "runnerup", group: "I" } },
-  { num: 79, date: "2026-06-30", venue: "Estadio Azteca, Mexico City", home: { type: "winner", group: "A" }, away: { type: "third", slot: "A" } },
-  { num: 80, date: "2026-07-01", venue: "Mercedes-Benz Stadium, Atlanta", home: { type: "winner", group: "L" }, away: { type: "third", slot: "L" } },
-  { num: 81, date: "2026-07-01", venue: "Levi's Stadium, Santa Clara", home: { type: "winner", group: "D" }, away: { type: "third", slot: "D" } },
-  { num: 82, date: "2026-07-01", venue: "Lumen Field, Seattle", home: { type: "winner", group: "G" }, away: { type: "third", slot: "G" } },
-  { num: 83, date: "2026-07-02", venue: "BMO Field, Toronto", home: { type: "runnerup", group: "K" }, away: { type: "runnerup", group: "L" } },
-  { num: 84, date: "2026-07-02", venue: "SoFi Stadium, Inglewood", home: { type: "winner", group: "H" }, away: { type: "runnerup", group: "J" } },
-  { num: 85, date: "2026-07-02", venue: "BC Place, Vancouver", home: { type: "winner", group: "B" }, away: { type: "third", slot: "B" } },
-  { num: 86, date: "2026-07-03", venue: "Hard Rock Stadium, Miami", home: { type: "winner", group: "J" }, away: { type: "runnerup", group: "H" } },
-  { num: 87, date: "2026-07-03", venue: "Arrowhead Stadium, Kansas City", home: { type: "winner", group: "K" }, away: { type: "third", slot: "K" } },
-  { num: 88, date: "2026-07-03", venue: "AT&T Stadium, Arlington", home: { type: "runnerup", group: "D" }, away: { type: "runnerup", group: "G" } },
+// Full knockout structure for the 2026 FIFA World Cup: Matches 73-104.
+// 73-88 = Round of 32, 89-96 = Round of 16, 97-100 = Quarterfinals,
+// 101-102 = Semifinals, 103 = Third Place Match, 104 = Final.
+//
+// Round of 32 "home"/"away" are direct group results (winner/runner-up) or
+// a "third" slot resolved via ANNEX_C below. Every later round references
+// its two feeder matches by number ("winnerOf"/"loserOf") — since match
+// numbers strictly increase round over round, resolving 73 -> 104 in order
+// is enough; no recursion needed.
+
+export const ROUND_LABELS = {
+  R32: "Round of 32",
+  R16: "Round of 16",
+  QF: "Quarterfinals",
+  SF: "Semifinals",
+  "3RD": "Third Place Match",
+  F: "Final",
+};
+
+export const ROUND_ORDER = ["R32", "R16", "QF", "SF", "F"];
+
+export const KNOCKOUT_MATCHES = [
+  // ---------- Round of 32 ----------
+  { num: 73, round: "R32", date: "2026-06-28", time: "3:00 PM ET", venue: "SoFi Stadium, Inglewood", home: { type: "runnerup", group: "A" }, away: { type: "runnerup", group: "B" } },
+  { num: 76, round: "R32", date: "2026-06-29", time: "1:00 PM ET", venue: "NRG Stadium, Houston", home: { type: "winner", group: "C" }, away: { type: "runnerup", group: "F" } },
+  { num: 74, round: "R32", date: "2026-06-29", time: "4:30 PM ET", venue: "Gillette Stadium, Foxborough", home: { type: "winner", group: "E" }, away: { type: "third", slot: "E" } },
+  { num: 75, round: "R32", date: "2026-06-29", time: "9:00 PM ET", venue: "Estadio BBVA, Monterrey", home: { type: "winner", group: "F" }, away: { type: "runnerup", group: "C" } },
+  { num: 78, round: "R32", date: "2026-06-30", time: "1:00 PM ET", venue: "AT&T Stadium, Arlington", home: { type: "runnerup", group: "E" }, away: { type: "runnerup", group: "I" } },
+  { num: 77, round: "R32", date: "2026-06-30", time: "5:00 PM ET", venue: "MetLife Stadium, East Rutherford", home: { type: "winner", group: "I" }, away: { type: "third", slot: "I" } },
+  { num: 79, round: "R32", date: "2026-06-30", time: "9:00 PM ET", venue: "Estadio Azteca, Mexico City", home: { type: "winner", group: "A" }, away: { type: "third", slot: "A" } },
+  { num: 80, round: "R32", date: "2026-07-01", time: "12:00 PM ET", venue: "Mercedes-Benz Stadium, Atlanta", home: { type: "winner", group: "L" }, away: { type: "third", slot: "L" } },
+  { num: 82, round: "R32", date: "2026-07-01", time: "4:00 PM ET", venue: "Lumen Field, Seattle", home: { type: "winner", group: "G" }, away: { type: "third", slot: "G" } },
+  { num: 81, round: "R32", date: "2026-07-01", time: "8:00 PM ET", venue: "Levi's Stadium, Santa Clara", home: { type: "winner", group: "D" }, away: { type: "third", slot: "D" } },
+  { num: 84, round: "R32", date: "2026-07-02", time: "3:00 PM ET", venue: "SoFi Stadium, Inglewood", home: { type: "winner", group: "H" }, away: { type: "runnerup", group: "J" } },
+  { num: 83, round: "R32", date: "2026-07-02", time: "7:00 PM ET", venue: "BMO Field, Toronto", home: { type: "runnerup", group: "K" }, away: { type: "runnerup", group: "L" } },
+  { num: 85, round: "R32", date: "2026-07-02", time: "11:00 PM ET", venue: "BC Place, Vancouver", home: { type: "winner", group: "B" }, away: { type: "third", slot: "B" } },
+  { num: 88, round: "R32", date: "2026-07-03", time: "2:00 PM ET", venue: "AT&T Stadium, Arlington", home: { type: "runnerup", group: "D" }, away: { type: "runnerup", group: "G" } },
+  { num: 86, round: "R32", date: "2026-07-03", time: "6:00 PM ET", venue: "Hard Rock Stadium, Miami Gardens", home: { type: "winner", group: "J" }, away: { type: "runnerup", group: "H" } },
+  { num: 87, round: "R32", date: "2026-07-03", time: "9:30 PM ET", venue: "Arrowhead Stadium, Kansas City", home: { type: "winner", group: "K" }, away: { type: "third", slot: "K" } },
+
+  // ---------- Round of 16 ----------
+  { num: 90, round: "R16", date: "2026-07-04", time: "1:00 PM ET", venue: "NRG Stadium, Houston", home: { type: "winnerOf", match: 73 }, away: { type: "winnerOf", match: 75 } },
+  { num: 89, round: "R16", date: "2026-07-04", time: "5:00 PM ET", venue: "Lincoln Financial Field, Philadelphia", home: { type: "winnerOf", match: 74 }, away: { type: "winnerOf", match: 77 } },
+  { num: 91, round: "R16", date: "2026-07-05", time: "4:00 PM ET", venue: "MetLife Stadium, East Rutherford", home: { type: "winnerOf", match: 76 }, away: { type: "winnerOf", match: 78 } },
+  { num: 92, round: "R16", date: "2026-07-05", time: "8:00 PM ET", venue: "Estadio Azteca, Mexico City", home: { type: "winnerOf", match: 79 }, away: { type: "winnerOf", match: 80 } },
+  { num: 93, round: "R16", date: "2026-07-06", time: "3:00 PM ET", venue: "AT&T Stadium, Arlington", home: { type: "winnerOf", match: 83 }, away: { type: "winnerOf", match: 84 } },
+  { num: 94, round: "R16", date: "2026-07-06", time: "8:00 PM ET", venue: "Lumen Field, Seattle", home: { type: "winnerOf", match: 81 }, away: { type: "winnerOf", match: 82 } },
+  { num: 95, round: "R16", date: "2026-07-07", time: "12:00 PM ET", venue: "Mercedes-Benz Stadium, Atlanta", home: { type: "winnerOf", match: 86 }, away: { type: "winnerOf", match: 88 } },
+  { num: 96, round: "R16", date: "2026-07-07", time: "4:00 PM ET", venue: "BC Place, Vancouver", home: { type: "winnerOf", match: 85 }, away: { type: "winnerOf", match: 87 } },
+
+  // ---------- Quarterfinals ----------
+  { num: 97, round: "QF", date: "2026-07-09", time: "4:00 PM ET", venue: "Gillette Stadium, Foxborough", home: { type: "winnerOf", match: 89 }, away: { type: "winnerOf", match: 90 } },
+  { num: 98, round: "QF", date: "2026-07-10", time: "3:00 PM ET", venue: "SoFi Stadium, Inglewood", home: { type: "winnerOf", match: 93 }, away: { type: "winnerOf", match: 94 } },
+  { num: 99, round: "QF", date: "2026-07-11", time: "5:00 PM ET", venue: "Hard Rock Stadium, Miami Gardens", home: { type: "winnerOf", match: 91 }, away: { type: "winnerOf", match: 92 } },
+  { num: 100, round: "QF", date: "2026-07-11", time: "9:00 PM ET", venue: "Arrowhead Stadium, Kansas City", home: { type: "winnerOf", match: 95 }, away: { type: "winnerOf", match: 96 } },
+
+  // ---------- Semifinals ----------
+  { num: 101, round: "SF", date: "2026-07-14", time: "3:00 PM ET", venue: "AT&T Stadium, Arlington", home: { type: "winnerOf", match: 97 }, away: { type: "winnerOf", match: 98 } },
+  { num: 102, round: "SF", date: "2026-07-15", time: "3:00 PM ET", venue: "Mercedes-Benz Stadium, Atlanta", home: { type: "winnerOf", match: 99 }, away: { type: "winnerOf", match: 100 } },
+
+  // ---------- Third Place Match & Final ----------
+  { num: 103, round: "3RD", date: "2026-07-18", time: "5:00 PM ET", venue: "Hard Rock Stadium, Miami Gardens", home: { type: "loserOf", match: 101 }, away: { type: "loserOf", match: 102 } },
+  { num: 104, round: "F", date: "2026-07-19", time: "3:00 PM ET", venue: "MetLife Stadium, East Rutherford", home: { type: "winnerOf", match: 101 }, away: { type: "winnerOf", match: 102 } },
 ];
 
 // Which possible groups can feed each "third" slot (for display before the

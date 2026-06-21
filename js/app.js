@@ -5,7 +5,8 @@ import {
   applyOverrides,
 } from "./standings-engine.js";
 import { FLAGS } from "./schedule-data.js";
-import { resolveBracket } from "./bracket-resolve.js";
+import { resolveKnockoutBracket } from "./bracket-resolve.js";
+import { KNOCKOUT_MATCHES } from "./bracket-data.js";
 
 // ---------- State ----------
 
@@ -166,20 +167,20 @@ function thirdPlaceHtml(thirdPlace, statuses) {
     <p class="tied-note" style="margin:10px 8px 12px;">Top 8 advance to the Round of 32 as the best third-place teams. Gold line marks the cutoff.</p>`;
 }
 
-function bracketPreviewTeamHtml({ team, label }) {
-  if (team) {
-    return `<div class="bracket-team resolved"><span class="flag">${flag(team)}</span><span class="bteam-name">${escapeHtml(team)}</span></div>`;
+function bracketPreviewTeamHtml(side) {
+  if (side.team) {
+    return `<div class="bracket-team resolved"><span class="flag">${flag(side.team)}</span><span class="bteam-name">${escapeHtml(side.team)}</span></div>`;
   }
-  return `<div class="bracket-team pending"><span class="bteam-name">TBD</span><span class="bteam-sub">${escapeHtml(label)}</span></div>`;
+  return `<div class="bracket-team pending"><span class="bteam-name">${escapeHtml(side.code)}</span></div>`;
 }
 
-function bracketPreviewCardHtml(fx) {
+function bracketPreviewCardHtml(m) {
   return `
     <div class="bracket-card">
-      <div class="bracket-card-head"><span class="match-num">Match ${fx.num}</span></div>
-      ${bracketPreviewTeamHtml(fx.home)}
+      <div class="bracket-card-head"><span class="match-num">Match ${m.num}</span></div>
+      ${bracketPreviewTeamHtml(m.home)}
       <div class="bracket-vs">vs</div>
-      ${bracketPreviewTeamHtml(fx.away)}
+      ${bracketPreviewTeamHtml(m.away)}
     </div>`;
 }
 
@@ -204,11 +205,12 @@ function render() {
   const wbLabel = document.getElementById("whatif-bracket-label");
   const wbGrid = document.getElementById("whatif-bracket");
   if (simOn) {
-    const { fixtures, statusNote } = resolveBracket(groupStandings, thirdPlace, allGroupsComplete);
+    const { matchesByNum, statusNote } = resolveKnockoutBracket(groupStandings, thirdPlace, allGroupsComplete, {});
+    const r32 = KNOCKOUT_MATCHES.filter((m) => m.round === "R32").map((m) => matchesByNum[m.num]);
     wbLabel.style.display = "block";
     wbGrid.style.display = "grid";
     const note = statusNote ? `<p class="tied-note" style="grid-column:1/-1;margin:0 0 4px;">${escapeHtml(statusNote)}</p>` : "";
-    wbGrid.innerHTML = note + fixtures.map(bracketPreviewCardHtml).join("");
+    wbGrid.innerHTML = note + r32.map(bracketPreviewCardHtml).join("");
   } else {
     wbLabel.style.display = "none";
     wbGrid.style.display = "none";

@@ -24,7 +24,8 @@ the real data.
 
 5. **Lock down writes to just you:** copy that user's UID (shown in the
    Users table), paste it into `firestore.rules` in place of
-   `REPLACE_WITH_YOUR_ADMIN_UID`, then go to Firestore → Rules, paste the
+   `REPLACE_WITH_YOUR_ADMIN_UID` (it appears twice — once for `matches`,
+   once for `knockoutMatches`), then go to Firestore → Rules, paste the
    full contents of `firestore.rules`, and click **Publish**.
 
 ## 2. Deploy to GitHub Pages
@@ -69,29 +70,53 @@ Third-place teams show as "alive" with a provisional cross-group rank
 until **all 12 groups** have finished their third match — that's when the
 real best-8 cutoff is actually determined.
 
-## Round of 32 bracket
+## Knockout bracket
 
-`/bracket.html` shows all 16 fixed Round of 32 fixtures (Matches 73–88),
-auto-filled from live standings:
+`/bracket.html` is a real tournament bracket — columns for Round of 32
+through the Final, plus a separate Third Place Match box — not a fixture
+list:
 
-- **Group winner/runner-up slots** fill in as soon as that group has played
-  all 3 matches (and isn't itself stuck on an unresolved tie).
-- **Third-place slots** ("Best 3rd Group X/Y/Z...") only fill in once **all
-  12 groups** are complete, using FIFA's actual **Annex C** allocation
-  table — the official pre-published lookup covering all 495 possible
-  combinations of which 8 groups' third-place teams qualify, so the slot a
-  given third-place team lands in is exactly what FIFA would assign, not an
-  approximation.
-- Toggling **what-if mode** on the main tracker and clicking through to
-  Bracket carries the scenario over, so you can preview how a hypothetical
-  result would reshape the bracket.
+- **Resolved slots** show the actual team name. **Undetermined slots**
+  show a compact code instead of a sentence: `A1` (Group A winner), `B2`
+  (Group B runner-up), `3rd` (an unresolved best-third slot), `W73` /
+  `L101` (winner/loser of a specific match) — never "Winner Group A" or
+  "TBD" on the card itself.
+- **No venue/date/time on the cards.** Click any matchup to open an
+  in-page modal with the match number, both teams, date, time, venue, and
+  status — without leaving the page.
+- **Round of 32** resolves from group standings exactly as before, using
+  FIFA's Annex C table for the third-place slots.
+- **Round of 16 onward only resolves once real results are entered in
+  Admin.** There's no what-if mechanism for the knockout rounds (only for
+  group-stage scores) — a match needs an actual winner before anything
+  downstream of it can fill in. Toggling what-if mode still affects how
+  the Round of 32 column fills in, carried over from the tracker.
+- Layout uses a flexbox trick to auto-center each round's matchups between
+  their two feeder matches — no manual pixel math, and it stays correct
+  no matter how the matches resolve. Scrolls horizontally on both desktop
+  and mobile.
+
+The tracker page also keeps a condensed **"Potential Round of 32"**
+preview under Best Third-Place Teams when what-if mode is on, sharing the
+exact same resolution logic as the full bracket page.
+
+## Entering knockout results (Admin)
+
+`/admin.html` now has a **Knockout results** panel below the group score
+list. Every one of the 32 knockout matches is listed; only the ones where
+both teams are already determined are editable. Enter the score, and if
+it was drawn after extra time, tick **Pens** and enter the shootout score
+— a knockout match can't be saved without a winner. Saving immediately
+recomputes the bracket, so newly-determined later-round matchups appear
+right away.
 
 ## Files
 
 - `index.html` / `js/app.js` — the public tracker
-- `bracket.html` / `js/bracket.js` — the Round of 32 bracket
-- `js/bracket-data.js` — the 16 fixed fixture slots + FIFA's Annex C table
-- `admin.html` / `js/admin.js` — score entry (auth-gated)
+- `bracket.html` / `js/bracket.js` — the knockout bracket (Round of 32 → Final + 3rd place)
+- `js/bracket-data.js` — all 32 knockout match slots + FIFA's Annex C table
+- `js/bracket-resolve.js` — shared resolution engine (used by the bracket page, the admin knockout panel, and the tracker's inline preview)
+- `admin.html` / `js/admin.js` — group score entry + knockout result entry (auth-gated)
 - `js/standings-engine.js` — pure tiebreaker/qualification logic (no
   Firebase dependency — see `test.mjs` for a standalone sanity check)
 - `js/schedule-data.js` — the master 72-match schedule, used only by the

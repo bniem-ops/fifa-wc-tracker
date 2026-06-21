@@ -1,17 +1,29 @@
-import { R32_FIXTURES, THIRD_SLOT_CANDIDATES, resolveThirdPlaceSlots } from "./bracket-data.js";
+import { KNOCKOUT_MATCHES, THIRD_SLOT_CANDIDATES, resolveThirdPlaceSlots } from "./bracket-data.js";
 
 /**
- * Resolves all 16 Round of 32 fixtures against a given set of group
- * standings. Safe to call even when groupStandings is incomplete or empty
- * (e.g. before Firestore data has loaded) — every lookup is guarded, so
- * unresolved slots come back as { team: null, ... } instead of throwing.
+ * Resolves all 32 knockout matches (Round of 32 through Final, plus the
+ * Third Place Match) against group standings and any actual knockout
+ * results recorded so far.
+ *
+ * Matches are processed in ascending number order (73 -> 104), which is
+ * always a valid topological order here: every later-round match only
+ * ever references earlier-numbered matches as its feeders, so a single
+ * forward pass resolves the whole bracket with no recursion needed.
+ *
+ * @param groupStandings  output of computeAllStandings(...).groupStandings
+ * @param thirdPlace      output of computeAllStandings(...).thirdPlace
+ * @param allGroupsComplete  output of computeAllStandings(...).allGroupsComplete
+ * @param knockoutResults  { [matchNum]: { homeScore, awayScore, wentToPenalties, homePens, awayPens, status } }
+ *
+ * Returns { matchesByNum, statusNote } where matchesByNum[num] is
+ * { ...matchDef, home: {team,code,label,sub}, away: {...}, winner, loser, result }
  */
-export function resolveBracket(groupStandings, thirdPlace, allGroupsComplete) {
+export function resolveKnockoutBracket(groupStandings, thirdPlace, allGroupsComplete, knockoutResults = {}) {
   let slotAssignment = null;
   let statusNote = "";
 
   if (!allGroupsComplete) {
-    statusNote = "Third-place slots lock in once every group has played all 3 matches. Showing what's confirmed so far.";
+    statusNote = "Round of 32 third-place slots lock in once every group has played all 3 matches. Showing what's confirmed so far.";
   } else {
     const straddles = (thirdPlace || []).some((t) => t.rankStart <= 8 && t.rankEnd > 8);
     if (straddles) {
@@ -23,31 +35,68 @@ export function resolveBracket(groupStandings, thirdPlace, allGroupsComplete) {
     }
   }
 
+  const matchesByNum = {};
+
   function describeSlot(descriptor) {
     if (descriptor.type === "winner" || descriptor.type === "runnerup") {
       const idx = descriptor.type === "winner" ? 0 : 1;
       const standing = groupStandings?.[descriptor.group]?.[idx];
+      const code = `${descriptor.group}${idx + 1}`;
       const label = `${descriptor.type === "winner" ? "Winner" : "Runner-up"} Group ${descriptor.group}`;
-      if (!standing) return { team: null, label, sub: "Loading…" };
-      if (!standing.groupComplete) return { team: null, label, sub: `Group ${descriptor.group} in progress` };
-      if (standing.tiedNote) return { team: null, label, sub: "Tied — insufficient data to separate" };
-      return { team: standing.team, label, sub: null };
+      if (!standing) return { team: null, code, label, sub: "Loading…" };
+      if (!standing.groupComplete) return { team: null, code, label, sub: `Group ${descriptor.group} in progress` };
+      if (standing.tiedNote) return { team: null, code, label, sub: "Tied — insufficient data to separate" };
+      return { team: standing.team, code, label, sub: null };
     }
-    const candidates = THIRD_SLOT_CANDIDATES[descriptor.slot].join("/");
-    const label = `Best 3rd Group ${candidates}`;
-    if (!slotAssignment) return { team: null, label, sub: "3rd-place race still in progress" };
-    const group = slotAssignment[descriptor.slot];
-    const standing = groupStandings?.[group]?.[2];
-    if (!standing) return { team: null, label, sub: "Loading…" };
-    if (standing.tiedNote) return { team: null, label, sub: "Tied — insufficient data to separate" };
-    return { team: standing.team, label: `3rd Group ${group}`, sub: null };
+
+    if (descriptor.type === "third") {
+      const candidates = THIRD_SLOT_CANDIDATES[descriptor.slot].join("/");
+      const label = `Best 3rd Group ${candidates}`;
+      if (!slotAssignment) return { team: null, code: "3rd", label, sub: "3rd-place race still in progress" };
+      const group = slotAssignment[descriptor.slot];
+      const standing = groupStandings?.[group]?.[2];
+      const code = `${group}3`;
+      if (!standing) return { team: null, code, label, sub: "Loading…" };
+      if (standing.tiedNote) return { team: null, code, label, sub: "Tied — insufficient data to separate" };
+      return { team: standing.team, code, label: `3rd Group ${group}`, sub: null };
+    }
+
+    // winnerOf / loserOf a prior match — that match is guaranteed to already
+    // be in matchesByNum since match numbers only ever reference lower ones.
+    const prior = matchesByNum[descriptor.match];
+    const isWinner = descriptor.type === "winnerOf";
+    const code = `${isWinner ? "W" : "L"}${descriptor.match}`;
+    const label = `${isWinner ? "Winner" : "Loser"} Match ${descriptor.match}`;
+    const team = prior ? (isWinner ? prior.winner : prior.loser) : null;
+    if (team) return { team, code, label, sub: null };
+    return { team: null, code, label, sub: prior && !prior.home.team ? "Teams not yet determined" : "Match not yet played" };
   }
 
-  const fixtures = R32_FIXTURES.map((fx) => ({
-    ...fx,
-    home: describeSlot(fx.home),
-    away: describeSlot(fx.away),
-  }));
+  for (const match of KNOCKOUT_MATCHES) {
+    const home = describeSlot(match.home);
+    const away = describeSlot(match.away);
+    const kr = knockoutResults[match.num];
 
-  return { fixtures, statusNote };
+    let winner = null;
+    let loser = null;
+    let result = null;
+
+    if (kr && kr.status === "played" && home.team && away.team) {
+      let winnerSide = null;
+      if (kr.homeScore !== kr.awayScore) {
+        winnerSide = kr.homeScore > kr.awayScore ? "home" : "away";
+      } else if (kr.wentToPenalties && kr.homePens !== kr.awayPens) {
+        winnerSide = kr.homePens > kr.awayPens ? "home" : "away";
+      }
+      if (winnerSide) {
+        winner = winnerSide === "home" ? home.team : away.team;
+        loser = winnerSide === "home" ? away.team : home.team;
+        result = kr;
+      }
+    }
+
+    matchesByNum[match.num] = { ...match, home, away, winner, loser, result };
+  }
+
+  return { matchesByNum, statusNote };
 }

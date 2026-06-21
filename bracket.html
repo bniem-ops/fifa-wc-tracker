@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Round of 32 Bracket — World Cup 26 Tracker</title>
+<title>Knockout Bracket — World Cup 26 Tracker</title>
 <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -16,8 +16,8 @@
     </nav>
     <div class="hero-inner">
       <div>
-        <h1>Round of <span class="accent">32</span></h1>
-        <div class="subtitle">All 16 fixtures, auto-filled as groups resolve</div>
+        <h1>Knockout <span class="accent">Bracket</span></h1>
+        <div class="subtitle">Round of 32 through the Final — tap any matchup for details</div>
       </div>
       <div class="sim-controls">
         <div class="sim-toggle">
@@ -29,17 +29,30 @@
   </div>
 
   <div class="sim-banner wrap" style="margin-top:14px;">
-    Showing a hypothetical scenario carried over from the tracker's what-if mode, not the confirmed bracket.
+    Showing a hypothetical scenario carried over from the tracker's what-if mode. This only affects how the Round of 32 fills in — later rounds still need real results entered in Admin.
   </div>
 
   <div class="wrap">
     <p id="bracket-status" class="bracket-status" style="display:none;"></p>
-    <div id="bracket-content"><p style="color:var(--text-muted);margin-top:20px;">Loading matches…</p></div>
+
+    <div class="bracket-scroll">
+      <div class="bracket-columns" id="bracket-columns"></div>
+    </div>
+
+    <div class="section-label">Third Place Match</div>
+    <div class="third-place-box" id="third-place-box"></div>
 
     <footer>
-      <span>Third-place slots follow FIFA's official Annex C allocation table (all 495 possible combinations). Direct group winner/runner-up slots only fill in once that group has played all 3 matches.</span>
+      <span>Round of 32 third-place slots follow FIFA's official Annex C allocation table. Later rounds advance automatically once real results are entered in Admin.</span>
       <a href="index.html">Tracker</a>
     </footer>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-box">
+      <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      <div id="modal-body"></div>
+    </div>
   </div>
 
   <script>

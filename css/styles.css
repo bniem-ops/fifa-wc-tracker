@@ -508,7 +508,8 @@ footer {
 .nav-link:hover { color: var(--text-chalk); }
 .nav-link.active { color: var(--accent-gold); background: rgba(242, 183, 5, 0.10); }
 
-/* ---------- Bracket page ---------- */
+/* ---------- Shared "compact match card" styles, used by the inline
+   what-if Round of 32 preview on the tracker page ---------- */
 
 .bracket-status {
   max-width: 1180px;
@@ -519,15 +520,6 @@ footer {
   background: var(--bg-panel);
   color: var(--text-muted);
   font-size: 13px;
-}
-
-.bracket-date-label {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  margin: 28px 0 12px;
 }
 
 .bracket-grid {
@@ -559,15 +551,6 @@ footer {
   white-space: nowrap;
 }
 
-.match-venue {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .bracket-team {
   display: flex;
   align-items: center;
@@ -596,6 +579,202 @@ footer {
   border-bottom: 1px dashed var(--border-soft);
   margin: 2px 0;
 }
+
+/* ---------- Responsive ---------- */
+
+/* ---------- True bracket layout ---------- */
+
+.bracket-scroll {
+  overflow-x: auto;
+  padding-bottom: 18px;
+  margin-top: 18px;
+}
+
+.bracket-columns {
+  display: flex;
+  align-items: stretch;
+  gap: 36px;
+  min-height: 100%;
+  width: max-content;
+}
+
+.bracket-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 188px;
+}
+
+.bracket-round-title {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-align: center;
+  padding-bottom: 12px;
+  flex: 0 0 auto;
+}
+
+.bracket-column-inner {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 10px;
+}
+
+.bracket-node {
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 8px 10px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bracket-node:hover { border-color: var(--accent-gold); background: var(--bg-panel-raised); }
+
+.bracket-column:not(:last-child) .bracket-node::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.bnode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-radius: 4px;
+}
+.bnode-row.bnode-winner { background: rgba(242, 183, 5, 0.08); }
+.bnode-row.bnode-winner .bnode-name { color: var(--accent-gold); font-weight: 700; }
+
+.bnode-team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.bnode-team .flag { font-size: 14px; flex-shrink: 0; }
+.bnode-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bnode-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.bnode-score {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-chalk);
+  padding-left: 6px;
+}
+
+.third-place-box {
+  max-width: 240px;
+}
+.third-place-box .bracket-node { width: 100%; }
+
+/* ---------- Modal ---------- */
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 31, 26, 0.78);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.modal-box {
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 26px 24px 22px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px;
+}
+.modal-close:hover { color: var(--text-chalk); }
+
+.modal-match-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-gold);
+  margin-bottom: 10px;
+}
+
+.modal-teams {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.modal-vs {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.modal-score {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  text-align: center;
+  margin: 10px 0;
+}
+
+.modal-details {
+  margin: 14px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+.modal-details dt { color: var(--text-muted); }
+.modal-details dd { margin: 0; }
 
 /* ---------- Responsive ---------- */
 
