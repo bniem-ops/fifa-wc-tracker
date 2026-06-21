@@ -3,9 +3,9 @@ import {
   computeAllStandings,
   buildGroupsFromMatches,
   applyOverrides,
-  ordinal,
 } from "./standings-engine.js";
 import { FLAGS } from "./schedule-data.js";
+import { resolveBracket } from "./bracket-resolve.js";
 
 // ---------- State ----------
 
@@ -67,6 +67,12 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function scoreOptions(selected) {
+  let out = "";
+  for (let i = 0; i <= 9; i++) out += `<option value="${i}" ${i === selected ? "selected" : ""}>${i}</option>`;
+  return out;
+}
+
 function groupCardHtml(group, standings, groupMatches, statuses) {
   const playedCount = groupMatches.filter((m) => m.status === "played").length;
   const complete = standings[0].groupComplete;
@@ -99,17 +105,9 @@ function groupCardHtml(group, standings, groupMatches, statuses) {
         const h = ov ? ov.homeScore : 0;
         const a = ov ? ov.awayScore : 0;
         scoreHtml = `
-          <div class="stepper" data-match="${m.id}" data-side="home">
-            <button type="button" class="step-btn" data-dir="-1" aria-label="Decrease ${escapeHtml(m.home)} goals">\u2212</button>
-            <span class="step-value">${h}</span>
-            <button type="button" class="step-btn" data-dir="1" aria-label="Increase ${escapeHtml(m.home)} goals">+</button>
-          </div>
+          <select class="score-select" data-match="${m.id}" data-side="home" aria-label="${escapeHtml(m.home)} goals">${scoreOptions(h)}</select>
           <span class="fixture-score">\u2013</span>
-          <div class="stepper" data-match="${m.id}" data-side="away">
-            <button type="button" class="step-btn" data-dir="-1" aria-label="Decrease ${escapeHtml(m.away)} goals">\u2212</button>
-            <span class="step-value">${a}</span>
-            <button type="button" class="step-btn" data-dir="1" aria-label="Increase ${escapeHtml(m.away)} goals">+</button>
-          </div>`;
+          <select class="score-select" data-match="${m.id}" data-side="away" aria-label="${escapeHtml(m.away)} goals">${scoreOptions(a)}</select>`;
       } else {
         scoreHtml = `<span class="fixture-score">vs</span>`;
       }
@@ -168,10 +166,27 @@ function thirdPlaceHtml(thirdPlace, statuses) {
     <p class="tied-note" style="margin:10px 8px 12px;">Top 8 advance to the Round of 32 as the best third-place teams. Gold line marks the cutoff.</p>`;
 }
 
+function bracketPreviewTeamHtml({ team, label }) {
+  if (team) {
+    return `<div class="bracket-team resolved"><span class="flag">${flag(team)}</span><span class="bteam-name">${escapeHtml(team)}</span></div>`;
+  }
+  return `<div class="bracket-team pending"><span class="bteam-name">TBD</span><span class="bteam-sub">${escapeHtml(label)}</span></div>`;
+}
+
+function bracketPreviewCardHtml(fx) {
+  return `
+    <div class="bracket-card">
+      <div class="bracket-card-head"><span class="match-num">Match ${fx.num}</span></div>
+      ${bracketPreviewTeamHtml(fx.home)}
+      <div class="bracket-vs">vs</div>
+      ${bracketPreviewTeamHtml(fx.away)}
+    </div>`;
+}
+
 function render() {
   const merged = applyOverrides(realMatches, overrides);
   const GROUPS = buildGroupsFromMatches(realMatches.length ? realMatches : merged);
-  const { groupStandings, thirdPlace, statuses } = computeAllStandings(merged, GROUPS);
+  const { groupStandings, thirdPlace, allGroupsComplete, statuses } = computeAllStandings(merged, GROUPS);
 
   document.body.classList.toggle("sim-on", simOn);
   document.getElementById("sim-switch").setAttribute("aria-checked", String(simOn));
@@ -186,22 +201,34 @@ function render() {
   document.getElementById("group-grid").innerHTML = groupsHtml;
   document.getElementById("third-place").innerHTML = thirdPlaceHtml(thirdPlace, statuses);
 
+  const wbLabel = document.getElementById("whatif-bracket-label");
+  const wbGrid = document.getElementById("whatif-bracket");
+  if (simOn) {
+    const { fixtures, statusNote } = resolveBracket(groupStandings, thirdPlace, allGroupsComplete);
+    wbLabel.style.display = "block";
+    wbGrid.style.display = "grid";
+    const note = statusNote ? `<p class="tied-note" style="grid-column:1/-1;margin:0 0 4px;">${escapeHtml(statusNote)}</p>` : "";
+    wbGrid.innerHTML = note + fixtures.map(bracketPreviewCardHtml).join("");
+  } else {
+    wbLabel.style.display = "none";
+    wbGrid.style.display = "none";
+    wbGrid.innerHTML = "";
+  }
+
   const playedTotal = merged.filter((m) => m.status === "played").length;
   document.getElementById("subtitle").textContent = `${playedTotal}/72 group matches played${simOn ? " \u2014 viewing a what-if scenario" : ""}`;
 
-  wireScoreSteppers();
+  wireScoreSelects();
 }
 
-function wireScoreSteppers() {
-  document.querySelectorAll(".step-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const wrap = btn.closest(".stepper");
-      const matchId = wrap.dataset.match;
-      const side = wrap.dataset.side; // "home" | "away"
-      const dir = Number(btn.dataset.dir);
+function wireScoreSelects() {
+  document.querySelectorAll(".score-select").forEach((sel) => {
+    sel.addEventListener("change", (e) => {
+      const matchId = e.target.dataset.match;
+      const side = e.target.dataset.side; // "home" | "away"
       const key = side === "home" ? "homeScore" : "awayScore";
       const current = overrides[matchId] || { homeScore: 0, awayScore: 0 };
-      current[key] = Math.max(0, Math.min(20, (current[key] ?? 0) + dir));
+      current[key] = Number(e.target.value);
       overrides[matchId] = current;
       syncUrl();
       render();

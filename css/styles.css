@@ -347,40 +347,21 @@ table.standings td {
 }
 .score-input:focus { border-color: var(--accent-gold); }
 
-.stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.step-btn {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.score-select {
+  width: 38px;
   background: var(--bg-panel-raised);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   color: var(--accent-gold);
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 15px;
-  line-height: 1;
-  touch-action: manipulation;
-}
-.step-btn:hover { border-color: var(--accent-gold); }
-.step-btn:active { transform: scale(0.92); background: rgba(242, 183, 5, 0.15); }
-
-.step-value {
-  min-width: 16px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-weight: 700;
   font-size: 13px;
-  color: var(--accent-gold);
+  text-align: center;
+  text-align-last: center;
+  padding: 3px 2px;
 }
+.score-select:focus { border-color: var(--accent-gold); }
+.score-select option { color: var(--text-chalk); background: var(--bg-panel-raised); }
 
 .fixture-date {
   font-family: var(--font-mono);
