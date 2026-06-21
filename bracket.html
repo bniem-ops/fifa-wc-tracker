@@ -19,17 +19,7 @@
         <h1>Knockout <span class="accent">Bracket</span></h1>
         <div class="subtitle">Round of 32 through the Final — tap any matchup for details</div>
       </div>
-      <div class="sim-controls">
-        <div class="sim-toggle">
-          <button class="switch" id="sim-switch" role="switch" aria-checked="false" aria-label="Toggle what-if mode"></button>
-          What-if mode
-        </div>
-      </div>
     </div>
-  </div>
-
-  <div class="sim-banner wrap" style="margin-top:14px;">
-    Showing a hypothetical scenario carried over from the tracker's what-if mode. This only affects how the Round of 32 fills in — later rounds still need real results entered in Admin.
   </div>
 
   <div class="wrap">
@@ -55,11 +45,6 @@
     </div>
   </div>
 
-  <script>
-    if (location.search) {
-      document.querySelectorAll(".nav-link").forEach((a) => (a.href = a.getAttribute("href") + location.search));
-    }
-  </script>
   <script type="module" src="js/bracket.js"></script>
 </body>
 </html>

@@ -87,10 +87,10 @@ list:
 - **Round of 32** resolves from group standings exactly as before, using
   FIFA's Annex C table for the third-place slots.
 - **Round of 16 onward only resolves once real results are entered in
-  Admin.** There's no what-if mechanism for the knockout rounds (only for
-  group-stage scores) — a match needs an actual winner before anything
-  downstream of it can fill in. Toggling what-if mode still affects how
-  the Round of 32 column fills in, carried over from the tracker.
+  Admin.** A match needs an actual winner before anything downstream of
+  it can fill in.
+- The bracket page always shows real Firestore data — no what-if toggle
+  here. What-if mode lives on the tracker page only (see below).
 - Layout uses a flexbox trick to auto-center each round's matchups between
   their two feeder matches — no manual pixel math, and it stays correct
   no matter how the matches resolve. Scrolls horizontally on both desktop

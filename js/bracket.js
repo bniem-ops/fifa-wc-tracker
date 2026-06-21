@@ -1,5 +1,5 @@
 import { matchesCollection, knockoutMatchesCollection, onSnapshot } from "./firebase-init.js";
-import { computeAllStandings, buildGroupsFromMatches, applyOverrides } from "./standings-engine.js";
+import { computeAllStandings, buildGroupsFromMatches } from "./standings-engine.js";
 import { FLAGS } from "./schedule-data.js";
 import { resolveKnockoutBracket } from "./bracket-resolve.js";
 import { KNOCKOUT_MATCHES, ROUND_LABELS, ROUND_ORDER } from "./bracket-data.js";
@@ -8,31 +8,9 @@ let realMatches = [];          // group-stage matches, live from Firestore
 let knockoutResults = {};      // { matchNum: {homeScore, awayScore, ...} }, live from Firestore
 let groupsLoaded = false;
 let knockoutLoaded = false;
-let overrides = {};            // local what-if group score overrides
-let simOn = false;
 
 const flag = (team) => FLAGS[team] || "🏳️";
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
-function decodeOverrides(str) {
-  const out = {};
-  if (!str) return out;
-  for (const part of str.split(",")) {
-    const m = part.match(/^([A-L]\d):(\d+)-(\d+)$/);
-    if (!m) continue;
-    out[m[1]] = { homeScore: Number(m[2]), awayScore: Number(m[3]) };
-  }
-  return out;
-}
-
-function loadFromUrl() {
-  const params = new URLSearchParams(location.search);
-  const sim = params.get("sim");
-  if (sim) {
-    overrides = decodeOverrides(sim);
-    simOn = true;
-  }
-}
 
 // ---------- Rendering ----------
 
@@ -63,14 +41,8 @@ function matchNodeHtml(m) {
 function render() {
   if (!groupsLoaded || !knockoutLoaded) return;
 
-  const merged = applyOverrides(realMatches, overrides);
   const GROUPS = buildGroupsFromMatches(realMatches);
-  const { groupStandings, thirdPlace, allGroupsComplete } = computeAllStandings(merged, GROUPS);
-
-  document.body.classList.toggle("sim-on", simOn);
-  if (document.getElementById("sim-switch")) {
-    document.getElementById("sim-switch").setAttribute("aria-checked", String(simOn));
-  }
+  const { groupStandings, thirdPlace, allGroupsComplete } = computeAllStandings(realMatches, GROUPS);
 
   const { matchesByNum, statusNote } = resolveKnockoutBracket(groupStandings, thirdPlace, allGroupsComplete, knockoutResults);
 
@@ -140,27 +112,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModal();
 });
 
-// ---------- Sim toggle ----------
-
-const simSwitch = document.getElementById("sim-switch");
-if (simSwitch) {
-  simSwitch.addEventListener("click", () => {
-    simOn = !simOn;
-    const params = new URLSearchParams(location.search);
-    if (simOn && Object.keys(overrides).length > 0) {
-      params.set("sim", Object.entries(overrides).map(([id, s]) => `${id}:${s.homeScore}-${s.awayScore}`).join(","));
-    } else {
-      params.delete("sim");
-    }
-    const qs = params.toString();
-    history.replaceState(null, "", qs ? `?${qs}` : location.pathname);
-    render();
-  });
-}
-
 // ---------- Boot ----------
-
-loadFromUrl();
 
 onSnapshot(matchesCollection, (snap) => {
   realMatches = snap.docs.map((d) => d.data());
