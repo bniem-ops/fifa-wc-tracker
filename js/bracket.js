@@ -4,16 +4,65 @@ import { FLAGS } from "./schedule-data.js";
 import { resolveKnockoutBracket } from "./bracket-resolve.js";
 import { KNOCKOUT_MATCHES, ROUND_LABELS, ROUND_ORDER } from "./bracket-data.js";
 
-let realMatches = [];          // group-stage matches, live from Firestore
-let knockoutResults = {};      // { matchNum: {homeScore, awayScore, ...} }, live from Firestore
+let realMatches = [];
+let knockoutResults = {};
 let groupsLoaded = false;
 let knockoutLoaded = false;
-let lastMatchesByNum = null;   // cached for responsive re-render on resize
-
-const mql = window.matchMedia("(min-width: 1024px)");
 
 const flag = (team) => FLAGS[team] || "🏳️";
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- SVG Connectors ----------
+
+function drawConnectors() {
+  const container = document.getElementById("bracket-columns");
+  document.getElementById("bracket-svg")?.remove();
+
+  const cRect = container.getBoundingClientRect();
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.id = "bracket-svg";
+  svg.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;overflow:visible;";
+  svg.setAttribute("width", container.scrollWidth);
+  svg.setAttribute("height", container.scrollHeight);
+  container.appendChild(svg);
+
+  const pos = (el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      lx: r.left - cRect.left,
+      rx: r.right - cRect.left,
+      cy: r.top - cRect.top + r.height / 2,
+    };
+  };
+
+  for (const m of KNOCKOUT_MATCHES) {
+    const feedNums = [m.home, m.away]
+      .filter((s) => s.type === "winnerOf")
+      .map((s) => s.match);
+    if (feedNums.length !== 2) continue;
+
+    const [aNum, bNum] = feedNums;
+    const childEl = container.querySelector(`[data-match="${m.num}"]`);
+    const aEl = container.querySelector(`[data-match="${aNum}"]`);
+    const bEl = container.querySelector(`[data-match="${bNum}"]`);
+    if (!childEl || !aEl || !bEl) continue;
+
+    const a = pos(aEl), b = pos(bEl), c = pos(childEl);
+    const jx = (a.rx + c.lx) / 2;
+    const jy = (a.cy + b.cy) / 2;
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute(
+      "d",
+      `M${a.rx},${a.cy}H${jx}V${b.cy}M${b.rx},${b.cy}H${jx}M${jx},${jy}H${c.lx}`
+    );
+    path.setAttribute("stroke", "rgba(244,241,232,0.28)");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+  }
+}
 
 // ---------- Rendering ----------
 
@@ -21,7 +70,8 @@ function teamRowHtml(side) {
   if (side.team) {
     return `<div class="bnode-team bnode-resolved"><span class="flag">${flag(side.team)}</span><span class="bnode-name">${escapeHtml(side.team)}</span></div>`;
   }
-  return `<div class="bnode-team bnode-pending"><span class="bnode-code">${escapeHtml(side.code)}</span></div>`;
+  const label = side.label || side.code;
+  return `<div class="bnode-team bnode-pending"><span class="bnode-label">${escapeHtml(label)}</span></div>`;
 }
 
 function matchNodeHtml(m) {
@@ -41,7 +91,7 @@ function matchNodeHtml(m) {
     </button>`;
 }
 
-// DFS from the Final outward — produces ordered pairs per round for mobile layout.
+// DFS from the Final outward — produces ordered pairs per round.
 function computeBracketLayout(matchesByNum) {
   const feeders = {};
   for (const m of KNOCKOUT_MATCHES) {
@@ -71,107 +121,29 @@ function computeBracketLayout(matchesByNum) {
   return layout;
 }
 
-// Splits the bracket into left/right halves from each SF, for the center-out desktop layout.
-function computeCenterOutLayout(matchesByNum) {
-  const feeders = {};
-  for (const m of KNOCKOUT_MATCHES) {
-    const f = [];
-    for (const side of [m.home, m.away]) {
-      if (side.type === "winnerOf") f.push(side.match);
-    }
-    if (f.length === 2) feeders[m.num] = f;
-  }
-
-  function collectHalf(sfNum) {
-    const half = { SF: [[matchesByNum[sfNum]]] };
-    function collect(num) {
-      if (!feeders[num]) return;
-      const [a, b] = feeders[num];
-      collect(a);
-      collect(b);
-      const round = matchesByNum[a]?.round;
-      if (round && matchesByNum[a] && matchesByNum[b]) {
-        if (!half[round]) half[round] = [];
-        half[round].push([matchesByNum[a], matchesByNum[b]]);
-      }
-    }
-    collect(sfNum);
-    return half;
-  }
-
-  const final = KNOCKOUT_MATCHES.find((m) => m.round === "F");
-  const [sf1, sf2] = feeders[final.num];
-  return {
-    leftHalf: collectHalf(sf1),
-    rightHalf: collectHalf(sf2),
-    final: matchesByNum[final.num],
-  };
-}
-
-function columnHtml(round, groups) {
-  const innerHtml = groups.map(([a, b]) =>
-    b ? `<div class="bracket-pair">${matchNodeHtml(a)}${matchNodeHtml(b)}</div>`
-      : matchNodeHtml(a)
-  ).join("");
-  return `
-    <div class="bracket-column" data-round="${round}">
-      <div class="bracket-round-title">${ROUND_LABELS[round]}</div>
-      <div class="bracket-column-inner">${innerHtml}</div>
-    </div>`;
-}
-
-// Mobile: left-to-right horizontal scroll, all rounds in one row.
-function renderMobile(container, matchesByNum) {
-  container.className = "bracket-columns";
-  const layout = computeBracketLayout(matchesByNum);
-  container.innerHTML = ROUND_ORDER.map((round) =>
-    columnHtml(round, layout[round] || [])
-  ).join("");
-}
-
-// Desktop: center-out layout — left half (R32→SF) | Final | right half (SF→R32).
-function renderDesktop(container, matchesByNum) {
-  container.className = "bracket-center-out";
-  const { leftHalf, rightHalf, final } = computeCenterOutLayout(matchesByNum);
-
-  const leftHtml = ["R32", "R16", "QF", "SF"]
-    .map((r) => columnHtml(r, leftHalf[r] || []))
-    .join("");
-  const rightHtml = ["SF", "QF", "R16", "R32"]
-    .map((r) => columnHtml(r, rightHalf[r] || []))
-    .join("");
-
-  container.innerHTML = `
-    <div class="bracket-half bracket-half-left">${leftHtml}</div>
-    <div class="bracket-final-center">
-      <div class="bracket-round-title">${ROUND_LABELS["F"]}</div>
-      <div class="bracket-column-inner">${matchNodeHtml(final)}</div>
-    </div>
-    <div class="bracket-half bracket-half-right">${rightHtml}</div>`;
-}
-
-function drawBracket(matchesByNum) {
-  const container = document.getElementById("bracket-columns");
-  if (mql.matches) {
-    renderDesktop(container, matchesByNum);
-  } else {
-    renderMobile(container, matchesByNum);
-  }
-}
-
 function render() {
   if (!groupsLoaded || !knockoutLoaded) return;
 
   const GROUPS = buildGroupsFromMatches(realMatches);
   const { groupStandings, thirdPlace, allGroupsComplete } = computeAllStandings(realMatches, GROUPS);
-
   const { matchesByNum, statusNote } = resolveKnockoutBracket(groupStandings, thirdPlace, allGroupsComplete, knockoutResults);
-  lastMatchesByNum = matchesByNum;
 
   document.getElementById("bracket-status").textContent = statusNote;
   document.getElementById("bracket-status").style.display = statusNote ? "block" : "none";
 
-  drawBracket(matchesByNum);
+  const layout = computeBracketLayout(matchesByNum);
+  document.getElementById("bracket-columns").innerHTML = ROUND_ORDER.map((round) => {
+    const groups = layout[round] || [];
+    const innerHtml = groups.map(([a, b]) =>
+      b ? `<div class="bracket-pair">${matchNodeHtml(a)}${matchNodeHtml(b)}</div>`
+        : matchNodeHtml(a)
+    ).join("");
+    return `
+      <div class="bracket-column" data-round="${round}">
+        <div class="bracket-round-title">${ROUND_LABELS[round]}</div>
+        <div class="bracket-column-inner">${innerHtml}</div>
+      </div>`;
+  }).join("");
 
   const thirdMatch = matchesByNum[103];
   document.getElementById("third-place-box").innerHTML = `
@@ -181,6 +153,8 @@ function render() {
   document.querySelectorAll(".bracket-node").forEach((btn) => {
     btn.addEventListener("click", () => openModal(matchesByNum[Number(btn.dataset.match)]));
   });
+
+  drawConnectors();
 }
 
 // ---------- Modal ----------
@@ -224,13 +198,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModal();
 });
 
-// Re-render on viewport crossing the 1024px breakpoint
-mql.addEventListener("change", () => {
-  if (!lastMatchesByNum) return;
-  drawBracket(lastMatchesByNum);
-  document.querySelectorAll(".bracket-node").forEach((btn) => {
-    btn.addEventListener("click", () => openModal(lastMatchesByNum[Number(btn.dataset.match)]));
-  });
+window.addEventListener("resize", () => {
+  if (groupsLoaded && knockoutLoaded) render();
 });
 
 // ---------- Boot ----------
