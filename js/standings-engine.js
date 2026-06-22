@@ -225,11 +225,29 @@ export function computeAllStandings(allMatches, GROUPS) {
     groupStandings[group] = computeGroupStandings(group, teams, allMatches);
   }
 
-  // Attach rivalsCouldCatch for the "clinched top 2" check.
-  for (const standings of Object.values(groupStandings)) {
+  // Attach rivalsCouldCatch and clinched1st for status checks.
+  for (const [group, standings] of Object.entries(groupStandings)) {
+    const groupMatches = allMatches.filter((m) =>
+      standings.some((s) => s.team === m.home) && standings.some((s) => s.team === m.away)
+    );
     for (const s of standings) {
       const others = standings.filter((o) => o.team !== s.team);
       s.rivalsCouldCatch = others.filter((o) => o.maxPts >= s.pts).length;
+
+      // A team has clinched 1st if every rival who could still match their points
+      // has already been beaten head-to-head (guaranteeing H2H pts advantage).
+      const potentialCatchers = others.filter((o) => o.maxPts >= s.pts);
+      s.clinched1st = !s.groupComplete && potentialCatchers.every((rival) => {
+        const h2h = groupMatches.find(
+          (m) => m.status === "played" &&
+            ((m.home === s.team && m.away === rival.team) ||
+             (m.home === rival.team && m.away === s.team))
+        );
+        if (!h2h) return false;
+        const sGoals = h2h.home === s.team ? h2h.homeScore : h2h.awayScore;
+        const rGoals = h2h.home === s.team ? h2h.awayScore : h2h.homeScore;
+        return sGoals > rGoals;
+      });
     }
   }
 

@@ -65,7 +65,14 @@ function statusTileHtml(team, status) {
 }
 
 function groupRankTileHtml(standing, status) {
-  if (!standing.groupComplete) return statusTileHtml(standing.team, status);
+  if (!standing.groupComplete) {
+    if (standing.clinched1st) {
+      const changed = prevStatusByTeam[standing.team] && prevStatusByTeam[standing.team] !== "POS1";
+      prevStatusByTeam[standing.team] = "POS1";
+      return `<span class="status-tile QUALIFIED ${changed ? "flip-anim" : ""}" title="${escapeHtml(`1st in Group ${standing.group} — clinched`)}">1</span>`;
+    }
+    return statusTileHtml(standing.team, status);
+  }
 
   const key = standing.team;
   if (standing.tiedNote) {
