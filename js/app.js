@@ -143,9 +143,9 @@ function groupCardHtml(group, standings, groupMatches, statuses) {
 function thirdPlaceHtml(thirdPlace, statuses, groupStandings, allGroupsComplete) {
   const straddles = (thirdPlace || []).some((t) => t.rankStart <= 8 && t.rankEnd > 8);
   let slotAssignment = null;
-  if (allGroupsComplete && !straddles) {
+  if (!straddles) {
     const qualifyingGroups = thirdPlace.filter((t) => t.rankStart <= 8).map((t) => t.group);
-    slotAssignment = resolveThirdPlaceSlots(qualifyingGroups);
+    if (qualifyingGroups.length === 8) slotAssignment = resolveThirdPlaceSlots(qualifyingGroups);
   }
 
   // Reverse map: group letter \u2192 slot letter (e.g. "F" \u2192 "A" means group F's 3rd plays in slot A)
