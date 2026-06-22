@@ -625,6 +625,7 @@ footer {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 
 .bracket-node {
@@ -640,9 +641,7 @@ footer {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  flex: 1;
   justify-content: center;
-  min-height: 56px;
 }
 .bracket-node:hover { border-color: var(--accent-gold); background: var(--bg-panel-raised); }
 
@@ -650,8 +649,9 @@ footer {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 4px;
+  gap: 0;
   position: relative;
+  justify-content: space-around;
 }
 
 .bnode-row {
