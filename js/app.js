@@ -64,6 +64,28 @@ function statusTileHtml(team, status) {
   return `<span class="status-tile ${status.code} ${changed ? "flip-anim" : ""}" title="${escapeHtml(status.label + ' — ' + status.detail)}">${letter}</span>`;
 }
 
+function groupRankTileHtml(standing, status) {
+  if (!standing.groupComplete) return statusTileHtml(standing.team, status);
+
+  const key = standing.team;
+  if (standing.tiedNote) {
+    const changed = prevStatusByTeam[key] && prevStatusByTeam[key] !== "CONTESTED";
+    prevStatusByTeam[key] = "CONTESTED";
+    return `<span class="status-tile CONTESTED ${changed ? "flip-anim" : ""}" title="${escapeHtml("Unresolved tie")}">?</span>`;
+  }
+
+  const rankCode = `POS${standing.rank}`;
+  const changed = prevStatusByTeam[key] && prevStatusByTeam[key] !== rankCode;
+  prevStatusByTeam[key] = rankCode;
+
+  if (standing.rank === 4) {
+    return `<span class="status-tile ELIMINATED ${changed ? "flip-anim" : ""}" title="${escapeHtml(`4th in Group ${standing.group}`)}">E</span>`;
+  }
+  const tileClass = standing.rank <= 2 ? "QUALIFIED" : "ALIVE";
+  const titles = { 1: "1st", 2: "2nd", 3: "3rd" };
+  return `<span class="status-tile ${tileClass} ${changed ? "flip-anim" : ""}" title="${escapeHtml(`${titles[standing.rank]} in Group ${standing.group}`)}">${standing.rank}</span>`;
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -90,7 +112,7 @@ function groupCardHtml(group, standings, groupMatches, statuses) {
           <td>${s.l}</td>
           <td>${s.gd >= 0 ? "+" : ""}${s.gd}</td>
           <td class="pts-cell">${s.pts}</td>
-          <td>${statusTileHtml(s.team, st)}</td>
+          <td>${groupRankTileHtml(s, st)}</td>
         </tr>`;
     })
     .join("");
