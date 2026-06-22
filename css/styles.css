@@ -384,8 +384,13 @@ table.third-place {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 560px;
+  min-width: 680px;
 }
+
+table.third-place td.opp-cell { white-space: nowrap; }
+table.third-place td.opp-none { color: var(--text-muted); }
+table.third-place td.opp-pending { color: var(--text-muted); font-style: italic; }
+table.third-place td.opp-resolved .flag { margin-right: 4px; }
 
 table.third-place th {
   text-align: left;

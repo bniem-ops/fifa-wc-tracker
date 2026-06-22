@@ -6,7 +6,7 @@ import {
 } from "./standings-engine.js";
 import { FLAGS } from "./schedule-data.js";
 import { resolveKnockoutBracket } from "./bracket-resolve.js";
-import { KNOCKOUT_MATCHES } from "./bracket-data.js";
+import { KNOCKOUT_MATCHES, resolveThirdPlaceSlots } from "./bracket-data.js";
 
 // ---------- State ----------
 
@@ -140,20 +140,52 @@ function groupCardHtml(group, standings, groupMatches, statuses) {
     </div>`;
 }
 
-function thirdPlaceHtml(thirdPlace, statuses) {
+function thirdPlaceHtml(thirdPlace, statuses, groupStandings, allGroupsComplete) {
+  const straddles = (thirdPlace || []).some((t) => t.rankStart <= 8 && t.rankEnd > 8);
+  let slotAssignment = null;
+  if (allGroupsComplete && !straddles) {
+    const qualifyingGroups = thirdPlace.filter((t) => t.rankStart <= 8).map((t) => t.group);
+    slotAssignment = resolveThirdPlaceSlots(qualifyingGroups);
+  }
+
+  // Reverse map: group letter \u2192 slot letter (e.g. "F" \u2192 "A" means group F's 3rd plays in slot A)
+  const groupToSlot = {};
+  if (slotAssignment) {
+    for (const [slot, grp] of Object.entries(slotAssignment)) {
+      groupToSlot[grp] = slot;
+    }
+  }
+
+  function opponentCell(t) {
+    const qualifies = t.rankEnd <= 8;
+    const contested = t.rankStart <= 8 && t.rankEnd > 8;
+    if (!qualifies && !contested) return `<td class="opp-cell opp-none">\u2014</td>`;
+    if (!slotAssignment || contested) return `<td class="opp-cell opp-pending">TBD</td>`;
+
+    const slot = groupToSlot[t.group];
+    if (!slot) return `<td class="opp-cell opp-pending">TBD</td>`;
+
+    const winner = groupStandings?.[slot]?.[0];
+    if (!winner || !winner.groupComplete || winner.tiedNote) {
+      return `<td class="opp-cell opp-pending">Group ${slot} 1st seed</td>`;
+    }
+    return `<td class="opp-cell opp-resolved"><span class="flag">${flag(winner.team)}</span>${escapeHtml(winner.team)}</td>`;
+  }
+
   const rows = thirdPlace
     .map((t) => {
       const st = statuses[t.team];
       const rankText = t.rankStart === t.rankEnd ? t.rankStart : `${t.rankStart}\u2013${t.rankEnd}`;
-      const qualifyLine = t.rankStart <= 8 && t.rankEnd > 8 ? " qualify-line" : "";
+      const isQualifyBorder = t.rankStart === 9 || (t.rankStart <= 8 && t.rankEnd > 8);
       return `
-        <tr class="${t.rankStart === 9 ? "qualify-line" : ""}${qualifyLine}">
+        <tr class="${isQualifyBorder ? "qualify-line" : ""}">
           <td class="num">${rankText}</td>
           <td><div class="team-cell"><span class="flag">${flag(t.team)}</span>${escapeHtml(t.team)}</div></td>
           <td>Group ${t.group}</td>
           <td class="num">${t.pts}</td>
           <td class="num">${t.gd >= 0 ? "+" : ""}${t.gd}</td>
           <td class="num">${t.gf}</td>
+          ${opponentCell(t)}
           <td>${statusTileHtml("3rd:" + t.team, st)}</td>
         </tr>`;
     })
@@ -161,7 +193,7 @@ function thirdPlaceHtml(thirdPlace, statuses) {
 
   return `
     <table class="third-place">
-      <thead><tr><th>#</th><th>Team</th><th>Group</th><th class="num">Pts</th><th class="num">GD</th><th class="num">GF</th><th></th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th>Group</th><th class="num">Pts</th><th class="num">GD</th><th class="num">GF</th><th>R32 Opponent</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <p class="tied-note" style="margin:10px 8px 12px;">Top 8 advance to the Round of 32 as the best third-place teams. Gold line marks the cutoff.</p>`;
@@ -200,7 +232,7 @@ function render() {
     })
     .join("");
   document.getElementById("group-grid").innerHTML = groupsHtml;
-  document.getElementById("third-place").innerHTML = thirdPlaceHtml(thirdPlace, statuses);
+  document.getElementById("third-place").innerHTML = thirdPlaceHtml(thirdPlace, statuses, groupStandings, allGroupsComplete);
 
   const wbLabel = document.getElementById("whatif-bracket-label");
   const wbGrid = document.getElementById("whatif-bracket");
