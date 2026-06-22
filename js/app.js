@@ -199,7 +199,8 @@ function thirdPlaceHtml(thirdPlace, statuses, groupStandings, allGroupsComplete)
     if (!slot) return `<td class="opp-cell opp-pending">TBD</td>`;
 
     const winner = groupStandings?.[slot]?.[0];
-    if (!winner || !winner.groupComplete || winner.tiedNote) {
+    const resolved = winner && (winner.groupComplete || winner.clinched1st) && !winner.tiedNote;
+    if (!resolved) {
       return `<td class="opp-cell opp-pending">Group ${slot} 1st seed</td>`;
     }
     return `<td class="opp-cell opp-resolved"><span class="flag">${flag(winner.team)}</span>${escapeHtml(winner.team)}</td>`;
