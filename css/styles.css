@@ -287,6 +287,16 @@ table.standings td {
 }
 .status-tile.flip-anim { animation: tileFlip 0.45s ease-out; }
 
+.rank-medal {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+}
+.rank-medal.flip-anim { animation: tileFlip 0.45s ease-out; }
+
 .tied-note {
   font-size: 11px;
   color: var(--text-muted);

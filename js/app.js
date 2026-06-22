@@ -69,7 +69,7 @@ function groupRankTileHtml(standing, status) {
     if (standing.clinched1st) {
       const changed = prevStatusByTeam[standing.team] && prevStatusByTeam[standing.team] !== "POS1";
       prevStatusByTeam[standing.team] = "POS1";
-      return `<span class="status-tile QUALIFIED ${changed ? "flip-anim" : ""}" title="${escapeHtml(`1st in Group ${standing.group} — clinched`)}">1</span>`;
+      return `<span class="rank-medal ${changed ? "flip-anim" : ""}" title="${escapeHtml(`1st in Group ${standing.group} — clinched`)}">🥇</span>`;
     }
     return statusTileHtml(standing.team, status);
   }
@@ -88,9 +88,13 @@ function groupRankTileHtml(standing, status) {
   if (standing.rank === 4) {
     return `<span class="status-tile ELIMINATED ${changed ? "flip-anim" : ""}" title="${escapeHtml(`4th in Group ${standing.group}`)}">E</span>`;
   }
-  const tileClass = standing.rank <= 2 ? "QUALIFIED" : "ALIVE";
-  const titles = { 1: "1st", 2: "2nd", 3: "3rd" };
-  return `<span class="status-tile ${tileClass} ${changed ? "flip-anim" : ""}" title="${escapeHtml(`${titles[standing.rank]} in Group ${standing.group}`)}">${standing.rank}</span>`;
+  if (standing.rank === 1) {
+    return `<span class="rank-medal ${changed ? "flip-anim" : ""}" title="${escapeHtml(`1st in Group ${standing.group}`)}">🥇</span>`;
+  }
+  if (standing.rank === 2) {
+    return `<span class="rank-medal ${changed ? "flip-anim" : ""}" title="${escapeHtml(`2nd in Group ${standing.group}`)}">🥈</span>`;
+  }
+  return `<span class="status-tile ALIVE ${changed ? "flip-anim" : ""}" title="${escapeHtml(`3rd in Group ${standing.group}`)}">${standing.rank}</span>`;
 }
 
 function escapeHtml(s) {
