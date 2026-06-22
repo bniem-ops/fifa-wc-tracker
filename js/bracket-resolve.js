@@ -44,9 +44,13 @@ export function resolveKnockoutBracket(groupStandings, thirdPlace, allGroupsComp
       const code = `${descriptor.group}${idx + 1}`;
       const label = `${descriptor.type === "winner" ? "Winner" : "Runner-up"} Group ${descriptor.group}`;
       if (!standing) return { team: null, code, label, sub: "Loading…" };
-      if (!standing.groupComplete) return { team: null, code, label, sub: `Group ${descriptor.group} in progress` };
-      if (standing.tiedNote) return { team: null, code, label, sub: "Tied — insufficient data to separate" };
-      return { team: standing.team, code, label, sub: null };
+      if (standing.groupComplete) {
+        if (standing.tiedNote) return { team: null, code, label, sub: "Tied — insufficient data to separate" };
+        return { team: standing.team, code, label, sub: null };
+      }
+      const clinched = descriptor.type === "winner" ? standing.clinched1st : standing.clinched2nd;
+      if (clinched) return { team: standing.team, code, label, sub: null };
+      return { team: null, code, label, sub: `Group ${descriptor.group} in progress` };
     }
 
     if (descriptor.type === "third") {

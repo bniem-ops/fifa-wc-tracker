@@ -249,6 +249,11 @@ export function computeAllStandings(allMatches, GROUPS) {
         return sGoals > rGoals;
       });
     }
+    // clinched2nd: top-2 is locked and the 1st-place slot is already claimed.
+    for (const s of standings) {
+      s.clinched2nd = !s.groupComplete && !s.clinched1st &&
+        s.rivalsCouldCatch <= 1 && standings.some((o) => o.clinched1st);
+    }
   }
 
   const allGroupsComplete = Object.values(groupStandings).every((s) => s[0].groupComplete);
