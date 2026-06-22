@@ -38,6 +38,37 @@ function matchNodeHtml(m) {
     </button>`;
 }
 
+// Traverses the bracket tree from the Final outward to produce an ordered
+// list of match pairs per round that matches the correct visual bracket layout.
+function computeBracketLayout(matchesByNum) {
+  const feeders = {};
+  for (const m of KNOCKOUT_MATCHES) {
+    const f = [];
+    for (const side of [m.home, m.away]) {
+      if (side.type === "winnerOf") f.push(side.match);
+    }
+    if (f.length === 2) feeders[m.num] = f;
+  }
+
+  const layout = {};
+  function collect(num) {
+    if (!feeders[num]) return;
+    const [a, b] = feeders[num];
+    collect(a);
+    collect(b);
+    const round = matchesByNum[a]?.round;
+    if (round && matchesByNum[a] && matchesByNum[b]) {
+      if (!layout[round]) layout[round] = [];
+      layout[round].push([matchesByNum[a], matchesByNum[b]]);
+    }
+  }
+
+  const final = KNOCKOUT_MATCHES.find((m) => m.round === "F");
+  collect(final.num);
+  layout["F"] = [[matchesByNum[final.num]]];
+  return layout;
+}
+
 function render() {
   if (!groupsLoaded || !knockoutLoaded) return;
 
@@ -49,13 +80,18 @@ function render() {
   document.getElementById("bracket-status").textContent = statusNote;
   document.getElementById("bracket-status").style.display = statusNote ? "block" : "none";
 
+  const layout = computeBracketLayout(matchesByNum);
+
   const columnsHtml = ROUND_ORDER.map((round) => {
-    const matches = KNOCKOUT_MATCHES.filter((m) => m.round === round).map((m) => matchesByNum[m.num]);
-    const nodes = matches.map(matchNodeHtml).join("");
+    const groups = layout[round] || [];
+    const innerHtml = groups.map(([a, b]) =>
+      b ? `<div class="bracket-pair">${matchNodeHtml(a)}${matchNodeHtml(b)}</div>`
+        : matchNodeHtml(a)
+    ).join("");
     return `
       <div class="bracket-column" data-round="${round}">
         <div class="bracket-round-title">${ROUND_LABELS[round]}</div>
-        <div class="bracket-column-inner">${nodes}</div>
+        <div class="bracket-column-inner">${innerHtml}</div>
       </div>`;
   }).join("");
 

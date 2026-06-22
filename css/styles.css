@@ -654,6 +654,37 @@ footer {
   background: var(--border-strong);
 }
 
+.bracket-pair {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 10px;
+  position: relative;
+}
+
+/* Vertical bar connecting the two horizontal stubs within a pair */
+.bracket-column:not(:last-child) .bracket-pair::before {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: calc(25% + 5px);
+  bottom: calc(25% + 5px);
+  width: 1px;
+  background: var(--border-strong);
+}
+
+/* Horizontal exit from the midpoint of the vertical bar to the next column */
+.bracket-column:not(:last-child) .bracket-pair::after {
+  content: '';
+  position: absolute;
+  right: -36px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: var(--border-strong);
+  transform: translateY(-50%);
+}
+
 .bnode-row {
   display: flex;
   align-items: center;
