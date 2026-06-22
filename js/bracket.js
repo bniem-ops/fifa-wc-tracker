@@ -8,6 +8,9 @@ let realMatches = [];          // group-stage matches, live from Firestore
 let knockoutResults = {};      // { matchNum: {homeScore, awayScore, ...} }, live from Firestore
 let groupsLoaded = false;
 let knockoutLoaded = false;
+let lastMatchesByNum = null;   // cached for responsive re-render on resize
+
+const mql = window.matchMedia("(min-width: 1024px)");
 
 const flag = (team) => FLAGS[team] || "🏳️";
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -38,8 +41,7 @@ function matchNodeHtml(m) {
     </button>`;
 }
 
-// Traverses the bracket tree from the Final outward to produce an ordered
-// list of match pairs per round that matches the correct visual bracket layout.
+// DFS from the Final outward — produces ordered pairs per round for mobile layout.
 function computeBracketLayout(matchesByNum) {
   const feeders = {};
   for (const m of KNOCKOUT_MATCHES) {
@@ -69,6 +71,94 @@ function computeBracketLayout(matchesByNum) {
   return layout;
 }
 
+// Splits the bracket into left/right halves from each SF, for the center-out desktop layout.
+function computeCenterOutLayout(matchesByNum) {
+  const feeders = {};
+  for (const m of KNOCKOUT_MATCHES) {
+    const f = [];
+    for (const side of [m.home, m.away]) {
+      if (side.type === "winnerOf") f.push(side.match);
+    }
+    if (f.length === 2) feeders[m.num] = f;
+  }
+
+  function collectHalf(sfNum) {
+    const half = { SF: [[matchesByNum[sfNum]]] };
+    function collect(num) {
+      if (!feeders[num]) return;
+      const [a, b] = feeders[num];
+      collect(a);
+      collect(b);
+      const round = matchesByNum[a]?.round;
+      if (round && matchesByNum[a] && matchesByNum[b]) {
+        if (!half[round]) half[round] = [];
+        half[round].push([matchesByNum[a], matchesByNum[b]]);
+      }
+    }
+    collect(sfNum);
+    return half;
+  }
+
+  const final = KNOCKOUT_MATCHES.find((m) => m.round === "F");
+  const [sf1, sf2] = feeders[final.num];
+  return {
+    leftHalf: collectHalf(sf1),
+    rightHalf: collectHalf(sf2),
+    final: matchesByNum[final.num],
+  };
+}
+
+function columnHtml(round, groups) {
+  const innerHtml = groups.map(([a, b]) =>
+    b ? `<div class="bracket-pair">${matchNodeHtml(a)}${matchNodeHtml(b)}</div>`
+      : matchNodeHtml(a)
+  ).join("");
+  return `
+    <div class="bracket-column" data-round="${round}">
+      <div class="bracket-round-title">${ROUND_LABELS[round]}</div>
+      <div class="bracket-column-inner">${innerHtml}</div>
+    </div>`;
+}
+
+// Mobile: left-to-right horizontal scroll, all rounds in one row.
+function renderMobile(container, matchesByNum) {
+  container.className = "bracket-columns";
+  const layout = computeBracketLayout(matchesByNum);
+  container.innerHTML = ROUND_ORDER.map((round) =>
+    columnHtml(round, layout[round] || [])
+  ).join("");
+}
+
+// Desktop: center-out layout — left half (R32→SF) | Final | right half (SF→R32).
+function renderDesktop(container, matchesByNum) {
+  container.className = "bracket-center-out";
+  const { leftHalf, rightHalf, final } = computeCenterOutLayout(matchesByNum);
+
+  const leftHtml = ["R32", "R16", "QF", "SF"]
+    .map((r) => columnHtml(r, leftHalf[r] || []))
+    .join("");
+  const rightHtml = ["SF", "QF", "R16", "R32"]
+    .map((r) => columnHtml(r, rightHalf[r] || []))
+    .join("");
+
+  container.innerHTML = `
+    <div class="bracket-half bracket-half-left">${leftHtml}</div>
+    <div class="bracket-final-center">
+      <div class="bracket-round-title">${ROUND_LABELS["F"]}</div>
+      <div class="bracket-column-inner">${matchNodeHtml(final)}</div>
+    </div>
+    <div class="bracket-half bracket-half-right">${rightHtml}</div>`;
+}
+
+function drawBracket(matchesByNum) {
+  const container = document.getElementById("bracket-columns");
+  if (mql.matches) {
+    renderDesktop(container, matchesByNum);
+  } else {
+    renderMobile(container, matchesByNum);
+  }
+}
+
 function render() {
   if (!groupsLoaded || !knockoutLoaded) return;
 
@@ -76,26 +166,12 @@ function render() {
   const { groupStandings, thirdPlace, allGroupsComplete } = computeAllStandings(realMatches, GROUPS);
 
   const { matchesByNum, statusNote } = resolveKnockoutBracket(groupStandings, thirdPlace, allGroupsComplete, knockoutResults);
+  lastMatchesByNum = matchesByNum;
 
   document.getElementById("bracket-status").textContent = statusNote;
   document.getElementById("bracket-status").style.display = statusNote ? "block" : "none";
 
-  const layout = computeBracketLayout(matchesByNum);
-
-  const columnsHtml = ROUND_ORDER.map((round) => {
-    const groups = layout[round] || [];
-    const innerHtml = groups.map(([a, b]) =>
-      b ? `<div class="bracket-pair">${matchNodeHtml(a)}${matchNodeHtml(b)}</div>`
-        : matchNodeHtml(a)
-    ).join("");
-    return `
-      <div class="bracket-column" data-round="${round}">
-        <div class="bracket-round-title">${ROUND_LABELS[round]}</div>
-        <div class="bracket-column-inner">${innerHtml}</div>
-      </div>`;
-  }).join("");
-
-  document.getElementById("bracket-columns").innerHTML = columnsHtml;
+  drawBracket(matchesByNum);
 
   const thirdMatch = matchesByNum[103];
   document.getElementById("third-place-box").innerHTML = `
@@ -112,7 +188,7 @@ function render() {
 function openModal(m) {
   const status = m.result ? "Final" : "Upcoming";
   const scoreLine = m.result
-    ? `${m.result.homeScore} \u2013 ${m.result.awayScore}${m.result.wentToPenalties ? ` (pens ${m.result.homePens}\u2013${m.result.awayPens})` : ""}`
+    ? `${m.result.homeScore} – ${m.result.awayScore}${m.result.wentToPenalties ? ` (pens ${m.result.homePens}–${m.result.awayPens})` : ""}`
     : null;
   const dateLabel = new Date(m.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
@@ -120,7 +196,7 @@ function openModal(m) {
   const awayLabel = m.away.team ? m.away.team : `${m.away.label} (${m.away.code})`;
 
   document.getElementById("modal-body").innerHTML = `
-    <div class="modal-match-num">Match ${m.num} \u2014 ${ROUND_LABELS[m.round]}</div>
+    <div class="modal-match-num">Match ${m.num} — ${ROUND_LABELS[m.round]}</div>
     <div class="modal-teams">
       <span>${m.home.team ? flag(m.home.team) + " " : ""}${escapeHtml(homeLabel)}</span>
       <span class="modal-vs">vs</span>
@@ -146,6 +222,15 @@ document.getElementById("modal-overlay").addEventListener("click", (e) => {
 document.getElementById("modal-close").addEventListener("click", closeModal);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModal();
+});
+
+// Re-render on viewport crossing the 1024px breakpoint
+mql.addEventListener("change", () => {
+  if (!lastMatchesByNum) return;
+  drawBracket(lastMatchesByNum);
+  document.querySelectorAll(".bracket-node").forEach((btn) => {
+    btn.addEventListener("click", () => openModal(lastMatchesByNum[Number(btn.dataset.match)]));
+  });
 });
 
 // ---------- Boot ----------

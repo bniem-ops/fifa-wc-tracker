@@ -812,6 +812,76 @@ footer {
 .modal-details dt { color: var(--text-muted); }
 .modal-details dd { margin: 0; }
 
+/* ---------- Center-out bracket (desktop ≥ 1024px) ---------- */
+
+.bracket-center-out {
+  display: flex;
+  align-items: stretch;
+  gap: 36px;
+  width: max-content;
+  min-height: 600px;
+}
+
+.bracket-half {
+  display: flex;
+  align-items: stretch;
+  gap: 36px;
+}
+
+.bracket-final-center {
+  display: flex;
+  flex-direction: column;
+  min-width: 188px;
+}
+
+.bracket-final-center .bracket-column-inner {
+  justify-content: center;
+}
+
+/* Right half: suppress all right-side connectors inherited from base rules */
+.bracket-center-out .bracket-half-right .bracket-column .bracket-node::after,
+.bracket-center-out .bracket-half-right .bracket-column .bracket-pair::before,
+.bracket-center-out .bracket-half-right .bracket-column .bracket-pair::after {
+  content: none;
+}
+
+/* Right half: left-side node stub (QF, R16, R32 — everything after SF which is :first-child) */
+.bracket-center-out .bracket-half-right .bracket-column:not(:first-child) .bracket-node::after {
+  content: '';
+  position: absolute;
+  right: auto;
+  left: -18px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+/* Right half: left-side vertical bar connecting two nodes in a pair */
+.bracket-center-out .bracket-half-right .bracket-column:not(:first-child) .bracket-pair::before {
+  content: '';
+  position: absolute;
+  right: auto;
+  left: -18px;
+  top: calc(25% + 5px);
+  bottom: calc(25% + 5px);
+  width: 1px;
+  background: var(--border-strong);
+}
+
+/* Right half: left-side horizontal exit from the midpoint of the vertical bar */
+.bracket-center-out .bracket-half-right .bracket-column:not(:first-child) .bracket-pair::after {
+  content: '';
+  position: absolute;
+  right: auto;
+  left: -36px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: var(--border-strong);
+  transform: translateY(-50%);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 640px) {
