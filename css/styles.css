@@ -694,6 +694,12 @@ footer {
   padding-left: 6px;
 }
 
+.bnode-medal {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
 .third-place-box {
   max-width: 240px;
 }

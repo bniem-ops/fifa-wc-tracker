@@ -78,14 +78,28 @@ function matchNodeHtml(m) {
   const homeScore = m.result ? m.result.homeScore : null;
   const awayScore = m.result ? m.result.awayScore : null;
   const winnerSide = m.winner ? (m.winner === m.home.team ? "home" : "away") : null;
+
+  let homeMedal = "", awayMedal = "";
+  if (m.winner) {
+    if (m.num === 104) {
+      homeMedal = winnerSide === "home" ? "🥇" : "🥈";
+      awayMedal = winnerSide === "away" ? "🥇" : "🥈";
+    } else if (m.num === 103) {
+      homeMedal = winnerSide === "home" ? "🥉" : "";
+      awayMedal = winnerSide === "away" ? "🥉" : "";
+    }
+  }
+
   return `
     <button type="button" class="bracket-node" data-match="${m.num}" aria-label="Match ${m.num} details">
       <div class="bnode-row ${winnerSide === "home" ? "bnode-winner" : ""}">
         ${teamRowHtml(m.home)}
+        ${homeMedal ? `<span class="bnode-medal">${homeMedal}</span>` : ""}
         ${homeScore !== null ? `<span class="bnode-score">${homeScore}</span>` : ""}
       </div>
       <div class="bnode-row ${winnerSide === "away" ? "bnode-winner" : ""}">
         ${teamRowHtml(m.away)}
+        ${awayMedal ? `<span class="bnode-medal">${awayMedal}</span>` : ""}
         ${awayScore !== null ? `<span class="bnode-score">${awayScore}</span>` : ""}
       </div>
     </button>`;
