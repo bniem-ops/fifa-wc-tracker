@@ -1,5 +1,5 @@
 // Feature flag — change to true to make this page publicly accessible
-const PICKEMS_ENABLED = false;
+const PICKEMS_ENABLED = true;
 if (!PICKEMS_ENABLED) { location.replace("index.html"); }
 
 import {
