@@ -1,5 +1,5 @@
 // Feature flag — change to true to make this page publicly accessible
-const PICKEMS_ENABLED = false;
+const PICKEMS_ENABLED = true;
 if (!PICKEMS_ENABLED) { location.replace("index.html"); }
 
 import {
@@ -8,7 +8,7 @@ import {
 import { computeAllStandings, buildGroupsFromMatches } from "./standings-engine.js";
 import { FLAGS } from "./schedule-data.js";
 import { resolveKnockoutBracket } from "./bracket-resolve.js";
-import { KNOCKOUT_MATCHES } from "./bracket-data.js";
+import { KNOCKOUT_MATCHES, ROUND_LABELS, ROUND_ORDER } from "./bracket-data.js";
 
 const flag = (t) => FLAGS[t] || "🏳️";
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -37,12 +37,10 @@ const pickemsCol = collection(db, "pickems");
 
 function buildMatchups(picks) {
   const mu = {};
-  // R32: teams determined by group stage, already resolved
   for (const m of KNOCKOUT_MATCHES.filter(m => m.round === "R32")) {
     const real = resolvedMatchesByNum[m.num];
     mu[m.num] = { home: real?.home?.team || null, away: real?.away?.team || null };
   }
-  // R16 onward: teams cascade from user's picks in the prior round
   for (const m of KNOCKOUT_MATCHES.filter(m => ["R16", "QF", "SF", "3RD", "F"].includes(m.round))) {
     mu[m.num] = { home: sideTeam(m.home, mu, picks), away: sideTeam(m.away, mu, picks) };
   }
@@ -71,6 +69,48 @@ function clearDownstream(matchNum) {
   }
 }
 
+// Build enriched matchup objects that look like bracket.js matchesByNum entries
+function enrichedMatchups(picks) {
+  const mu = buildMatchups(picks);
+  const byNum = {};
+  for (const m of KNOCKOUT_MATCHES) {
+    byNum[m.num] = {
+      ...m,
+      home: { ...m.home, team: mu[m.num]?.home ?? null },
+      away: { ...m.away, team: mu[m.num]?.away ?? null },
+    };
+  }
+  return byNum;
+}
+
+// Same layout algorithm as bracket.js — DFS from Final outward
+function computeBracketLayout(matchesByNum) {
+  const feeders = {};
+  for (const m of KNOCKOUT_MATCHES) {
+    const f = [];
+    for (const side of [m.home, m.away]) {
+      if (side.type === "winnerOf") f.push(side.match);
+    }
+    if (f.length === 2) feeders[m.num] = f;
+  }
+  const layout = {};
+  function collect(num) {
+    if (!feeders[num]) return;
+    const [a, b] = feeders[num];
+    collect(a);
+    collect(b);
+    const round = matchesByNum[a]?.round;
+    if (round && matchesByNum[a] && matchesByNum[b]) {
+      if (!layout[round]) layout[round] = [];
+      layout[round].push([matchesByNum[a], matchesByNum[b]]);
+    }
+  }
+  const final = KNOCKOUT_MATCHES.find(m => m.round === "F");
+  collect(final.num);
+  layout["F"] = [[matchesByNum[final.num]]];
+  return layout;
+}
+
 // ---------- Scoring ----------
 
 const ROUND_PTS = { R32: 1, R16: 2, QF: 4, SF: 8, "3RD": 2, F: 16 };
@@ -86,6 +126,100 @@ function scoreEntry(picks) {
 
 function actualPKs() {
   return Object.values(knockoutResults).filter(r => r.wentToPenalties).length;
+}
+
+// ---------- SVG connectors (same logic as bracket.js) ----------
+
+function drawPickBracket() {
+  const container = document.getElementById("pk-bracket-columns");
+  if (!container) return;
+  document.getElementById("pk-bracket-svg")?.remove();
+
+  const cRect = container.getBoundingClientRect();
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.id = "pk-bracket-svg";
+  svg.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;overflow:visible;";
+  svg.setAttribute("width", container.scrollWidth);
+  svg.setAttribute("height", container.scrollHeight);
+  container.appendChild(svg);
+
+  const pos = el => {
+    const r = el.getBoundingClientRect();
+    return { lx: r.left - cRect.left, rx: r.right - cRect.left, cy: r.top - cRect.top + r.height / 2 };
+  };
+
+  for (const m of KNOCKOUT_MATCHES) {
+    const feedNums = [m.home, m.away].filter(s => s.type === "winnerOf").map(s => s.match);
+    if (feedNums.length !== 2) continue;
+    const [aNum, bNum] = feedNums;
+    const childEl = container.querySelector(`[data-match="${m.num}"]`);
+    const aEl = container.querySelector(`[data-match="${aNum}"]`);
+    const bEl = container.querySelector(`[data-match="${bNum}"]`);
+    if (!childEl || !aEl || !bEl) continue;
+
+    const a = pos(aEl), b = pos(bEl), c = pos(childEl);
+    const jx = (a.rx + c.lx) / 2;
+    const jy = (a.cy + b.cy) / 2;
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M${a.rx},${a.cy}H${jx}V${b.cy}M${b.rx},${b.cy}H${jx}M${jx},${jy}H${c.lx}`);
+    path.setAttribute("stroke", "rgba(244,241,232,0.28)");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+  }
+}
+
+// ---------- Bracket node HTML ----------
+
+function pkRowHtml(matchNum, team, picked, isReadonly) {
+  const isPicked = !!team && picked === team;
+  const kr = isReadonly ? knockoutResults[matchNum] : null;
+  const actual = kr?.winner || null;
+  const isCorrect = isPicked && !!actual && actual === team;
+  const isWrong = isPicked && !!actual && actual !== team;
+
+  let cls = "";
+  if (!team) cls = " pk-tbd-row";
+  else if (isReadonly && isPicked) cls = isCorrect ? " pk-correct" : isWrong ? " pk-wrong" : " pk-sel";
+  else if (!isReadonly && isPicked) cls = " pk-sel";
+  else if (!isReadonly) cls = " pk-clickable";
+
+  const icon = isReadonly && isPicked
+    ? (isCorrect ? `<span class="pk-row-icon pk-icon-ok">✓</span>` : isWrong ? `<span class="pk-row-icon pk-icon-x">✗</span>` : "")
+    : "";
+
+  const teamInner = team
+    ? `<div class="bnode-team bnode-resolved"><span class="flag">${flag(team)}</span><span class="bnode-name">${esc(team)}</span></div>`
+    : `<div class="bnode-team bnode-pending"><span class="bnode-label">TBD</span></div>`;
+
+  const dataAttrs = !isReadonly && team ? ` data-num="${matchNum}" data-team="${esc(team)}"` : "";
+  return `<div class="bnode-row${cls}"${dataAttrs}>${teamInner}${icon}</div>`;
+}
+
+function pkMatchNodeHtml(m, picks, isReadonly) {
+  const picked = picks?.[m.num] || null;
+  return `<div class="bracket-node pk-node" data-match="${m.num}">
+    ${pkRowHtml(m.num, m.home.team, picked, isReadonly)}
+    ${pkRowHtml(m.num, m.away.team, picked, isReadonly)}
+  </div>`;
+}
+
+function bracketColumnsHtml(matchesByNum, picks, isReadonly) {
+  const layout = computeBracketLayout(matchesByNum);
+  return ROUND_ORDER.map(round => {
+    const groups = layout[round] || [];
+    const innerHtml = groups.map(([a, b]) =>
+      b ? `<div class="bracket-pair">${pkMatchNodeHtml(a, picks, isReadonly)}${pkMatchNodeHtml(b, picks, isReadonly)}</div>`
+        : pkMatchNodeHtml(a, picks, isReadonly)
+    ).join("");
+    return `
+      <div class="bracket-column" data-round="${round}">
+        <div class="bracket-round-title">${ROUND_LABELS[round]}</div>
+        <div class="bracket-column-inner">${innerHtml}</div>
+      </div>`;
+  }).join("");
 }
 
 // ---------- Render ----------
@@ -143,15 +277,6 @@ function lbHtml(scored, pks) {
 
 // ---------- Pick form ----------
 
-const FORM_ROUNDS = [
-  { label: "Round of 32", round: "R32" },
-  { label: "Round of 16", round: "R16" },
-  { label: "Quarterfinals", round: "QF" },
-  { label: "Semifinals", round: "SF" },
-  { label: "Third Place", round: "3RD" },
-  { label: "Final", round: "F" },
-];
-
 function renderPickSection() {
   const el = document.getElementById("picks-section");
   if (mySubmissionId) {
@@ -161,69 +286,52 @@ function renderPickSection() {
     el.innerHTML = formHtml();
     wireForm();
   }
+  requestAnimationFrame(drawPickBracket);
 }
 
 function formHtml() {
-  const mu = buildMatchups(localPicks);
+  const matchesByNum = enrichedMatchups(localPicks);
   const allPicked = KNOCKOUT_MATCHES.every(m => localPicks[m.num]);
   const champion = localPicks[104] || null;
 
-  const roundsHtml = FORM_ROUNDS.map(({ label, round }) => `
-    <div class="pk-round-group">
-      <div class="pk-round-label">${label}</div>
-      <div class="pk-matchups">
-        ${KNOCKOUT_MATCHES.filter(m => m.round === round).map(m => matchupHtml(m, mu, localPicks)).join("")}
-      </div>
-    </div>`).join("");
-
   return `
-    <div class="pk-form">
-      ${roundsHtml}
-      <div class="pk-submit-area">
-        <div class="pk-champ-preview">
-          ${champion
-            ? `Your champion: <span class="flag">${flag(champion)}</span><strong>${esc(champion)}</strong> 🏆`
-            : "Pick your way to the Final to reveal your champion"}
+    <div class="pk-bracket-wrap">
+      <div class="bracket-scroll">
+        <div class="bracket-columns" id="pk-bracket-columns">
+          ${bracketColumnsHtml(matchesByNum, localPicks, false)}
         </div>
-        <div class="pk-field">
-          <label for="pk-pks">Tiebreaker — how many knockout matches go to penalties?</label>
-          <input type="number" id="pk-pks" min="0" max="15" class="pk-input" placeholder="Your guess (0–15)" />
-        </div>
-        <div class="pk-field">
-          <label for="pk-name">Your name</label>
-          <input type="text" id="pk-name" maxlength="40" class="pk-input" placeholder="Enter your name" />
-        </div>
-        <button id="pk-submit" class="pk-submit-btn" ${!allPicked ? "disabled" : ""}>
-          ${allPicked ? "Submit your bracket" : "Pick every match to unlock submission"}
-        </button>
       </div>
+    </div>
+    <div class="third-place-box" style="margin-top:24px; margin-bottom:20px;">
+      <div class="bracket-round-title">${ROUND_LABELS["3RD"]}</div>
+      ${pkMatchNodeHtml(matchesByNum[103], localPicks, false)}
+    </div>
+    <div class="pk-submit-area">
+      <div class="pk-champ-preview">
+        ${champion
+          ? `Your champion: <span class="flag">${flag(champion)}</span><strong>${esc(champion)}</strong> 🏆`
+          : "Pick your way to the Final to reveal your champion"}
+      </div>
+      <div class="pk-field">
+        <label for="pk-pks">Tiebreaker — how many knockout matches go to penalties?</label>
+        <input type="number" id="pk-pks" min="0" max="15" class="pk-input" placeholder="Your guess (0–15)" />
+      </div>
+      <div class="pk-field">
+        <label for="pk-name">Your name</label>
+        <input type="text" id="pk-name" maxlength="40" class="pk-input" placeholder="Enter your name" />
+      </div>
+      <button id="pk-submit" class="pk-submit-btn" ${!allPicked ? "disabled" : ""}>
+        ${allPicked ? "Submit your bracket" : "Pick every match to unlock submission"}
+      </button>
     </div>`;
 }
 
-function matchupHtml(m, mu, picks) {
-  const { home, away } = mu[m.num] || {};
-  const picked = picks[m.num];
-  return `<div class="pk-matchup">
-    ${teamBtnHtml(m.num, home, picked)}
-    ${teamBtnHtml(m.num, away, picked)}
-  </div>`;
-}
-
-function teamBtnHtml(matchNum, team, picked) {
-  const isSel = !!team && picked === team;
-  const isTbd = !team;
-  return `<button class="pk-btn${isSel ? " pk-sel" : ""}${isTbd ? " pk-tbd" : ""}"
-    data-num="${matchNum}" data-team="${esc(team || "")}" ${isTbd ? "disabled" : ""}>
-    ${team ? `<span class="flag">${flag(team)}</span>${esc(team)}` : "TBD"}
-  </button>`;
-}
-
 function wireForm() {
-  document.querySelectorAll(".pk-btn:not(:disabled)").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const num = Number(btn.dataset.num);
-      const team = btn.dataset.team;
-      if (!team) return;
+  document.querySelectorAll(".pk-node .bnode-row[data-num]").forEach(row => {
+    const team = row.dataset.team;
+    if (!team) return;
+    row.addEventListener("click", () => {
+      const num = Number(row.dataset.num);
       if (localPicks[num] === team) {
         delete localPicks[num];
         clearDownstream(num);
@@ -273,19 +381,11 @@ async function handleSubmit() {
 // ---------- Read-only submitted view ----------
 
 function readonlyHtml(entry) {
-  const mu = buildMatchups(entry.picks || {});
+  const matchesByNum = enrichedMatchups(entry.picks || {});
   const pks = actualPKs();
   const champion = entry.picks?.[104] || null;
   const myScore = scoreEntry(entry.picks);
   const anyResults = Object.values(knockoutResults).some(r => r.winner);
-
-  const roundsHtml = FORM_ROUNDS.map(({ label, round }) => `
-    <div class="pk-round-group">
-      <div class="pk-round-label">${label}</div>
-      <div class="pk-matchups">
-        ${KNOCKOUT_MATCHES.filter(m => m.round === round).map(m => readonlyMatchupHtml(m, mu, entry.picks)).join("")}
-      </div>
-    </div>`).join("");
 
   return `
     <div class="pk-submitted-header">
@@ -297,32 +397,24 @@ function readonlyHtml(entry) {
         PK guess: <strong>${entry.pkGuess ?? "—"}</strong>&nbsp;/&nbsp;Actual: <strong>${pks}</strong>
       </span>
     </div>
-    <div class="pk-form pk-form-ro">${roundsHtml}</div>`;
-}
-
-function readonlyMatchupHtml(m, mu, picks) {
-  const { home, away } = mu[m.num] || {};
-  const picked = picks?.[m.num];
-  const kr = knockoutResults[m.num];
-  const actual = kr?.winner || null;
-  return `<div class="pk-matchup">
-    ${readonlyTeamHtml(home, picked, actual)}
-    ${readonlyTeamHtml(away, picked, actual)}
-  </div>`;
-}
-
-function readonlyTeamHtml(team, picked, actual) {
-  const isPicked = !!team && picked === team;
-  const isCorrect = isPicked && !!actual && actual === team;
-  const isWrong = isPicked && !!actual && actual !== team;
-  const cls = isPicked ? (isCorrect ? " pk-correct" : isWrong ? " pk-wrong" : " pk-sel") : "";
-  return `<div class="pk-btn pk-btn-ro${cls}">
-    ${team ? `<span class="flag">${flag(team)}</span>${esc(team)}` : `<span class="pk-tbd-label">TBD</span>`}
-    ${isCorrect ? `<span class="pk-icon pk-icon-ok">✓</span>` : isWrong ? `<span class="pk-icon pk-icon-x">✗</span>` : ""}
-  </div>`;
+    <div class="pk-bracket-wrap">
+      <div class="bracket-scroll">
+        <div class="bracket-columns" id="pk-bracket-columns">
+          ${bracketColumnsHtml(matchesByNum, entry.picks || {}, true)}
+        </div>
+      </div>
+    </div>
+    <div class="third-place-box" style="margin-top:24px;">
+      <div class="bracket-round-title">${ROUND_LABELS["3RD"]}</div>
+      ${pkMatchNodeHtml(matchesByNum[103], entry.picks || {}, true)}
+    </div>`;
 }
 
 // ---------- Boot ----------
+
+window.addEventListener("resize", () => {
+  if (groupsLoaded && knockoutLoaded) drawPickBracket();
+});
 
 onSnapshot(matchesCollection, snap => {
   realMatches = snap.docs.map(d => d.data());
