@@ -6,6 +6,8 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  addDoc,
+  serverTimestamp,
   onSnapshot,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
@@ -29,6 +31,8 @@ export {
   getDocs,
   setDoc,
   updateDoc,
+  addDoc,
+  serverTimestamp,
   onSnapshot,
   signInWithEmailAndPassword,
   onAuthStateChanged,

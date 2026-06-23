@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pick'ems — World Cup 26 Tracker</title>
+<link rel="icon" href="wc-tracker-favicon.png" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <div class="hero">
+    <nav class="page-nav">
+      <a href="index.html" class="nav-link">Tracker</a>
+      <a href="bracket.html" class="nav-link">Bracket</a>
+      <a href="pickems.html" class="nav-link active">Pick'ems</a>
+      <a href="admin.html" class="nav-link">Admin</a>
+    </nav>
+    <div class="hero-inner">
+      <div>
+        <h1>Pick<span class="accent">'ems</span></h1>
+        <div class="subtitle">Predict the knockout bracket — Round of 16 through the Final</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="section-label">Leaderboard</div>
+    <div id="leaderboard-inner"><p class="pk-empty">Loading…</p></div>
+
+    <div class="section-label" style="margin-top:40px;" id="picks-label">Your Bracket</div>
+    <div id="picks-section"><p class="pk-empty">Loading…</p></div>
+
+    <footer>
+      <span>Picks lock when the Round of 32 begins. Scoring: 1pt R32 · 2pt R16 · 4pt QF · 8pt SF · 2pt 3rd · 16pt Final. Tiebreaker: closest PK guess wins.</span>
+      <a href="bracket.html">Bracket</a>
+    </footer>
+  </div>
+
+  <script type="module" src="js/pickems.js"></script>
+</body>
+</html>
