@@ -54,6 +54,14 @@
     </footer>
   </div>
 
+  <!-- Outcomes modal -->
+  <div class="modal-overlay" id="outcomes-modal" role="dialog" aria-modal="true" tabindex="-1" style="display:none;">
+    <div class="modal-box outcomes-modal-box">
+      <button class="modal-close" id="outcomes-modal-close" aria-label="Close">&times;</button>
+      <div id="outcomes-modal-body"></div>
+    </div>
+  </div>
+
   <script>
     if (location.search) {
       document.querySelectorAll(".nav-link").forEach((a) => (a.href = a.getAttribute("href") + location.search));

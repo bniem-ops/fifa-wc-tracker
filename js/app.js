@@ -7,6 +7,7 @@ import {
 import { FLAGS } from "./schedule-data.js";
 import { resolveKnockoutBracket } from "./bracket-resolve.js";
 import { KNOCKOUT_MATCHES, resolveThirdPlaceSlots } from "./bracket-data.js";
+import { computeGroupOutcomes } from "./outcomes.js";
 
 // ---------- State ----------
 
@@ -14,6 +15,10 @@ let realMatches = [];           // live from Firestore
 let overrides = {};             // { matchId: { homeScore, awayScore } } — local only
 let simOn = false;
 let prevStatusByTeam = {};      // for flip-animation diffing
+
+// Cached for outcomes modal
+let _mergedMatches = [];
+let _groupTeamsMap = {};
 
 const flag = (team) => FLAGS[team] || "🏳️";
 
@@ -162,7 +167,10 @@ function groupCardHtml(group, standings, groupMatches, statuses) {
   return `
     <div class="group-card">
       <div class="group-card-head">
-        <h2>Group ${group}</h2>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <h2>Group ${group}</h2>
+          ${!complete ? `<button class="outcomes-btn" data-group="${group}" aria-label="Possible outcomes for Group ${group}">?</button>` : ""}
+        </div>
         <span class="complete-tag">${complete ? "decided" : `${playedCount}/6 played`}</span>
       </div>
       <table class="standings">
@@ -258,6 +266,13 @@ function render() {
   document.body.classList.toggle("sim-on", simOn);
   document.getElementById("sim-switch").setAttribute("aria-checked", String(simOn));
 
+  // Cache for outcomes modal
+  _mergedMatches = merged;
+  _groupTeamsMap = {};
+  for (const [g, standings] of Object.entries(groupStandings)) {
+    _groupTeamsMap[g] = standings.map(s => s.team);
+  }
+
   const groupsHtml = Object.keys(groupStandings)
     .sort()
     .map((g) => {
@@ -266,6 +281,7 @@ function render() {
     })
     .join("");
   document.getElementById("group-grid").innerHTML = groupsHtml;
+  wireOutcomesButtons();
   document.getElementById("third-place").innerHTML = thirdPlaceHtml(thirdPlace, statuses, groupStandings, allGroupsComplete);
 
   const wbLabel = document.getElementById("whatif-bracket-label");
@@ -304,6 +320,131 @@ function wireScoreSelects() {
   });
 }
 
+// ---------- Outcomes modal ----------
+
+function outcomesModalHtml(group, outcomes) {
+  const { unplayed, clinched, eliminated, contested, thirdOnly, scenarios, bullets, r32First, r32Second } = outcomes;
+
+  let html = `<div class="outcomes-title">Group ${group} — Possible Outcomes</div>`;
+
+  // Bullet facts
+  if (bullets.length) {
+    html += `<ul class="outcomes-bullets">`;
+    for (const b of bullets) {
+      html += `<li class="outcomes-bullet outcomes-bullet-${b.kind}">${b.html}</li>`;
+    }
+    html += `</ul>`;
+  }
+
+  // Scenario table
+  const showTable = contested.length > 0 || thirdOnly.length > 0;
+  if (showTable || bullets.length === 0) {
+    const hasThird = thirdOnly.length > 0;
+
+    if (unplayed.length === 2) {
+      // 3×3 grid layout
+      const [m1, m2] = unplayed;
+      const colHdrs = [
+        `${flag(m2.home)} win`,
+        `Draw`,
+        `${flag(m2.away)} win`,
+      ];
+      const rowHdrs = [
+        `${flag(m1.home)} win`,
+        `Draw`,
+        `${flag(m1.away)} win`,
+      ];
+
+      html += `<div class="outcomes-grid-wrap">`;
+      html += `<div class="outcomes-grid-labels">`;
+      html += `<span class="outcomes-grid-match">${escapeHtml(m1.home)} vs ${escapeHtml(m1.away)}</span>`;
+      html += `<span class="outcomes-grid-sep">↕</span>`;
+      html += `<span class="outcomes-grid-match">${escapeHtml(m2.home)} vs ${escapeHtml(m2.away)}</span> →`;
+      html += `</div>`;
+
+      html += `<div class="outcomes-grid-scroll"><table class="outcomes-grid">`;
+      html += `<thead><tr><th></th>${colHdrs.map(h => `<th>${h}</th>`).join("")}</tr></thead>`;
+      html += `<tbody>`;
+
+      for (let row = 0; row < 3; row++) {
+        html += `<tr><th>${rowHdrs[row]}</th>`;
+        for (let col = 0; col < 3; col++) {
+          const { standings } = scenarios[row * 3 + col];
+          const first = standings.find(s => s.rank === 1);
+          const second = standings.find(s => s.rank === 2);
+          const third = hasThird ? standings.find(s => s.rank === 3) : null;
+          const highlight = contested.some(t => standings.find(s => s.team === t)?.rank <= 2)
+            || thirdOnly.some(t => standings.find(s => s.team === t)?.rank === 3);
+          const hasTie = standings.some(s => s.tiedNote);
+          html += `<td class="${highlight ? "outcomes-cell-hl" : ""}">`;
+          if (first) html += `<div class="outcomes-cell-row"><span class="outcomes-seed-num">1</span>${flag(first.team)} ${escapeHtml(first.team)}</div>`;
+          if (second) html += `<div class="outcomes-cell-row"><span class="outcomes-seed-num">2</span>${flag(second.team)} ${escapeHtml(second.team)}</div>`;
+          if (hasThird && third) html += `<div class="outcomes-cell-row outcomes-cell-third"><span class="outcomes-seed-num">3</span>${flag(third.team)} ${escapeHtml(third.team)}</div>`;
+          if (hasTie) html += `<div class="outcomes-tie">*tie</div>`;
+          html += `</td>`;
+        }
+        html += `</tr>`;
+      }
+      html += `</tbody></table></div>`;
+      if (hasThird) html += `<p class="outcomes-note">3rd-place teams enter the best-8 cross-group qualifying race — advancement not guaranteed.</p>`;
+      html += `</div>`;
+
+    } else {
+      // Flat list for 1 or 3+ unplayed matches
+      html += `<div class="outcomes-grid-scroll"><table class="outcomes-flat">`;
+      html += `<thead><tr>`;
+      for (const m of unplayed) html += `<th>${escapeHtml(m.home)} vs ${escapeHtml(m.away)}</th>`;
+      html += `<th>1st</th><th>2nd</th>`;
+      if (hasThird) html += `<th>3rd</th>`;
+      html += `</tr></thead><tbody>`;
+      for (const { combo, standings } of scenarios) {
+        const first = standings.find(s => s.rank === 1);
+        const second = standings.find(s => s.rank === 2);
+        const third = hasThird ? standings.find(s => s.rank === 3) : null;
+        const highlight = contested.some(t => standings.find(s => s.team === t)?.rank <= 2);
+        html += `<tr class="${highlight ? "outcomes-cell-hl" : ""}">`;
+        for (const c of combo) {
+          const lbl = c.homeScore > c.awayScore ? `${flag(c.home)} win` : c.homeScore === c.awayScore ? "Draw" : `${flag(c.away)} win`;
+          html += `<td>${lbl}</td>`;
+        }
+        html += `<td>${first ? `${flag(first.team)} ${escapeHtml(first.team)}` : "?"}</td>`;
+        html += `<td>${second ? `${flag(second.team)} ${escapeHtml(second.team)}` : "?"}</td>`;
+        if (hasThird) html += `<td class="outcomes-cell-third">${third ? `${flag(third.team)} ${escapeHtml(third.team)}` : "?"}</td>`;
+        html += `</tr>`;
+      }
+      html += `</tbody></table></div>`;
+      if (hasThird) html += `<p class="outcomes-note">3rd-place teams enter the best-8 cross-group qualifying race — advancement not guaranteed.</p>`;
+    }
+  }
+
+  // R32 section
+  if (r32First || r32Second) {
+    html += `<div class="outcomes-r32">`;
+    html += `<div class="outcomes-r32-title">Round of 32 matchups</div>`;
+    if (r32First) html += `<div class="outcomes-r32-row"><span class="outcomes-seed-chip">1st seed</span> vs <span class="outcomes-r32-opp">${escapeHtml(r32First.oppLabel)}</span></div>`;
+    if (r32Second) html += `<div class="outcomes-r32-row"><span class="outcomes-seed-chip">2nd seed</span> vs <span class="outcomes-r32-opp">${escapeHtml(r32Second.oppLabel)}</span></div>`;
+    html += `</div>`;
+  }
+
+  return html;
+}
+
+function wireOutcomesButtons() {
+  document.querySelectorAll(".outcomes-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const group = btn.dataset.group;
+      const groupTeams = _groupTeamsMap[group];
+      if (!groupTeams) return;
+      const outcomes = computeGroupOutcomes(group, groupTeams, _mergedMatches);
+      if (!outcomes) return;
+      document.getElementById("outcomes-modal-body").innerHTML = outcomesModalHtml(group, outcomes);
+      const modal = document.getElementById("outcomes-modal");
+      modal.style.display = "flex";
+      modal.focus();
+    });
+  });
+}
+
 // ---------- Controls ----------
 
 document.getElementById("sim-switch").addEventListener("click", () => {
@@ -335,6 +476,18 @@ document.getElementById("sim-share").addEventListener("click", async () => {
 
 loadFromUrl();
 render();
+
+// Outcomes modal close handlers
+const _outcomesModal = document.getElementById("outcomes-modal");
+document.getElementById("outcomes-modal-close").addEventListener("click", () => {
+  _outcomesModal.style.display = "none";
+});
+_outcomesModal.addEventListener("click", e => {
+  if (e.target === _outcomesModal) _outcomesModal.style.display = "none";
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && _outcomesModal.style.display === "flex") _outcomesModal.style.display = "none";
+});
 
 onSnapshot(matchesCollection, (snap) => {
   if (snap.empty) {
