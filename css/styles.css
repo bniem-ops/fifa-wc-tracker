@@ -19,7 +19,7 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
   margin: 0;
@@ -359,6 +359,8 @@ table.standings td {
 
 .score-select {
   width: 38px;
+  -webkit-appearance: none;
+  appearance: none;
   background: var(--bg-panel-raised);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
