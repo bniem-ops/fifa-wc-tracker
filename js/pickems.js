@@ -279,6 +279,7 @@ function lbHtml(scored, pks) {
 
 function renderPickSection() {
   const el = document.getElementById("picks-section");
+  const savedScroll = el.querySelector(".bracket-scroll")?.scrollLeft ?? 0;
   if (mySubmissionId) {
     const mine = allPickems.find(p => p.docId === mySubmissionId);
     el.innerHTML = mine ? readonlyHtml(mine) : `<p class="pk-empty" style="padding:20px 0">Loading your picks…</p>`;
@@ -286,6 +287,8 @@ function renderPickSection() {
     el.innerHTML = formHtml();
     wireForm();
   }
+  const newScroll = el.querySelector(".bracket-scroll");
+  if (newScroll && savedScroll) newScroll.scrollLeft = savedScroll;
   requestAnimationFrame(drawPickBracket);
 }
 
