@@ -263,6 +263,17 @@ function render() {
   const GROUPS = buildGroupsFromMatches(realMatches.length ? realMatches : merged);
   const { groupStandings, thirdPlace, allGroupsComplete, statuses } = computeAllStandings(merged, GROUPS);
 
+  // Override status for teams mathematically eliminated via h2h tiebreakers
+  for (const [group, standings] of Object.entries(groupStandings)) {
+    if (standings[0].groupComplete) continue;
+    const teams = standings.map(s => s.team);
+    const outcomes = computeGroupOutcomes(group, teams, merged);
+    if (!outcomes) continue;
+    for (const team of outcomes.eliminated) {
+      statuses[team] = { code: "ELIMINATED", label: "Eliminated", detail: "Cannot finish top 2 regardless of remaining results" };
+    }
+  }
+
   document.body.classList.toggle("sim-on", simOn);
   document.getElementById("sim-switch").setAttribute("aria-checked", String(simOn));
 
