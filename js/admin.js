@@ -138,7 +138,7 @@ async function loadKnockoutList() {
     }
 
     return `
-      <div class="admin-match-row" data-num="${def.num}">
+      <div class="admin-match-row" data-num="${def.num}" data-home="${m.home.team}" data-away="${m.away.team}">
         <span class="group-pill">${def.round}</span>
         <span class="teams">M${def.num}: ${homeLabel} <span style="color:var(--text-muted)">vs</span> ${awayLabel}</span>
         <input type="number" min="0" max="20" class="score-input ko-score" data-side="home" value="${r ? r.homeScore : ""}" />
@@ -181,9 +181,15 @@ async function loadKnockoutList() {
         return;
       }
 
+      const homeTeam = row.dataset.home;
+      const awayTeam = row.dataset.away;
+      const winner = wentToPenalties
+        ? (homePens > awayPens ? homeTeam : awayTeam)
+        : (homeScore > awayScore ? homeTeam : awayTeam);
+
       try {
         await setDoc(doc(db, "knockoutMatches", String(num)), {
-          homeScore, awayScore, wentToPenalties, homePens, awayPens, status: "played",
+          homeScore, awayScore, wentToPenalties, homePens, awayPens, status: "played", winner,
         });
         msgEl.textContent = "Saved";
         msgEl.style.color = "var(--accent-green)";
