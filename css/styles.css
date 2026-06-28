@@ -833,7 +833,9 @@ footer {
   text-align: left;
   border-bottom: 1px solid var(--border-soft);
 }
-.pk-lb thead th.num { text-align: right; }
+.pk-lb thead th.num { text-align: right; width: 48px; white-space: nowrap; }
+.pk-lb thead th:first-child { width: 32px; }
+.pk-lb tbody td.num { text-align: right; white-space: nowrap; }
 .pk-lb tbody td {
   padding: 11px 10px;
   border-bottom: 1px solid var(--border-soft);
